@@ -1,0 +1,36 @@
+{
+  "name": "uandup-calculator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "0BSD",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build:wasm": "node scripts/build-wasm.mjs",
+    "build": "npm run build:wasm && node scripts/prepare-licenses.mjs && tsc --noEmit && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "test:engine": "cargo test --manifest-path engine/Cargo.toml",
+    "test": "playwright test",
+    "predev": "node scripts/prepare-licenses.mjs"
+  },
+  "dependencies": {
+    "@fluent/bundle": "0.19.1",
+    "@lukeed/uuid": "2.0.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/node": "26.5.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "prettier": "3.9.6",
+    "sass": "1.104.1",
+    "typescript": "7.0.2",
+    "vite": "8.3.0"
+  }
+}

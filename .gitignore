@@ -1,0 +1,15 @@
+node_modules/
+dist/
+target/
+public/wasm/
+public/source/
+public/licenses/
+public/LICENSE
+public/THIRD_PARTY_NOTICES.md
+playwright-report/
+test-results/
+coverage/
+.env
+.env.*
+*.local
+.DS_Store

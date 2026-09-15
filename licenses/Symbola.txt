@@ -1,0 +1,17 @@
+Symbola — bundled basic subset, font version 2.52
+Unicode Fonts for Ancient Scripts; George Douros; 2009
+
+Permission statement for the legacy freely redistributable font:
+
+Fonts are free for any use; they may be opened, edited,
+modified, regenerated, packaged and redistributed.
+
+The subset is supplied with the public DesQuill source distribution. Its embedded
+name table identifies version 2.52 and George Douros, 2009. The legacy permission
+statement is also preserved in the upstream copyright record distributed with
+Ubuntu fonts-symbola 2.60-1.1 (source package ttf-ancient-fonts):
+http://archive.ubuntu.com/ubuntu/pool/universe/t/ttf-ancient-fonts/
+Author's original website: http://users.teilar.gr/~g1951d/
+
+This notice covers the font only; no Debian packaging is included. It does not
+apply to later Symbola versions distributed under different terms.

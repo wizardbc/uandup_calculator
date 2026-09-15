@@ -1,0 +1,594 @@
+{
+  "npm": [
+    {
+      "name": "@fluent/bundle",
+      "version": "0.19.1",
+      "license": "Apache-2.0",
+      "development": false,
+      "files": [
+        "licenses/npm/@fluent__bundle/LICENSE"
+      ]
+    },
+    {
+      "name": "@lukeed/csprng",
+      "version": "1.1.0",
+      "license": "MIT",
+      "development": false,
+      "files": [
+        "licenses/npm/@lukeed__csprng/license"
+      ]
+    },
+    {
+      "name": "@lukeed/uuid",
+      "version": "2.0.1",
+      "license": "MIT",
+      "development": false,
+      "files": [
+        "licenses/npm/@lukeed__uuid/license"
+      ]
+    },
+    {
+      "name": "@oxc-project/types",
+      "version": "0.149.0",
+      "license": "MIT",
+      "development": true,
+      "files": [
+        "licenses/npm/@oxc-project__types/LICENSE"
+      ]
+    },
+    {
+      "name": "@parcel/watcher",
+      "version": "2.6.0",
+      "license": "MIT",
+      "development": true,
+      "files": [
+        "licenses/npm/@parcel__watcher/LICENSE"
+      ]
+    },
+    {
+      "name": "@parcel/watcher-linux-x64-glibc",
+      "version": "2.6.0",
+      "license": "MIT",
+      "development": true,
+      "files": [
+        "licenses/npm/@parcel__watcher-linux-x64-glibc/LICENSE"
+      ]
+    },
+    {
+      "name": "@playwright/test",
+      "version": "1.63.0",
+      "license": "Apache-2.0",
+      "development": true,
+      "files": [
+        "licenses/npm/@playwright__test/LICENSE",
+        "licenses/npm/@playwright__test/NOTICE"
+      ]
+    },
+    {
+      "name": "@rolldown/binding-linux-x64-gnu",
+      "version": "1.2.8",
+      "license": "MIT",
+      "development": true,
+      "files": [
+        "licenses/npm/@rolldown__binding-linux-x64-gnu/LICENSE"
+      ]
+    },
+    {
+      "name": "@rolldown/pluginutils",
+      "version": "1.0.1",
+      "license": "MIT",
+      "development": true,
+      "files": [
+        "licenses/npm/@rolldown__pluginutils/LICENSE"
+      ]
+    },
+    {
+      "name": "@types/node",
+      "version": "26.5.1",
+      "license": "MIT",
+      "development": true,
+      "files": [
+        "licenses/npm/@types__node/LICENSE"
+      ]
+    },
+    {
+      "name": "@types/react",
+      "version": "19.3.0",
+      "license": "MIT",
+      "development": true,
+      "files": [
+        "licenses/npm/@types__react/LICENSE"
+      ]
+    },
+    {
+      "name": "@types/react-dom",
+      "version": "19.3.0",
+      "license": "MIT",
+      "development": true,
+      "files": [
+        "licenses/npm/@types__react-dom/LICENSE"
+      ]
+    },
+    {
+      "name": "@typescript/typescript-linux-x64",
+      "version": "7.0.2",
+      "license": "Apache-2.0",
+      "development": true,
+      "files": [
+        "licenses/npm/@typescript__typescript-linux-x64/LICENSE",
+        "licenses/npm/@typescript__typescript-linux-x64/NOTICE.txt"
+      ]
+    },
+    {
+      "name": "@vitejs/plugin-react",
+      "version": "6.1.1",
+      "license": "MIT",
+      "development": true,
+      "files": [
+        "licenses/npm/@vitejs__plugin-react/LICENSE"
+      ]
+    },
+    {
+      "name": "chokidar",
+      "version": "5.0.0",
+      "license": "MIT",
+      "development": true,
+      "files": [
+        "licenses/npm/chokidar/LICENSE"
+      ]
+    },
+    {
+      "name": "csstype",
+      "version": "3.2.3",
+      "license": "MIT",
+      "development": true,
+      "files": [
+        "licenses/npm/csstype/LICENSE"
+      ]
+    },
+    {
+      "name": "detect-libc",
+      "version": "2.1.2",
+      "license": "Apache-2.0",
+      "development": true,
+      "files": [
+        "licenses/npm/detect-libc/LICENSE"
+      ]
+    },
+    {
+      "name": "fdir",
+      "version": "6.5.0",
+      "license": "MIT",
+      "development": true,
+      "files": [
+        "licenses/npm/fdir/LICENSE"
+      ]
+    },
+    {
+      "name": "immutable",
+      "version": "5.1.9",
+      "license": "MIT",
+      "development": true,
+      "files": [
+        "licenses/npm/immutable/LICENSE"
+      ]
+    },
+    {
+      "name": "is-extglob",
+      "version": "2.1.1",
+      "license": "MIT",
+      "development": true,
+      "files": [
+        "licenses/npm/is-extglob/LICENSE"
+      ]
+    },
+    {
+      "name": "is-glob",
+      "version": "4.0.3",
+      "license": "MIT",
+      "development": true,
+      "files": [
+        "licenses/npm/is-glob/LICENSE"
+      ]
+    },
+    {
+      "name": "lightningcss",
+      "version": "1.33.0",
+      "license": "MPL-2.0",
+      "development": true,
+      "files": [
+        "licenses/npm/lightningcss/LICENSE"
+      ]
+    },
+    {
+      "name": "lightningcss-linux-x64-gnu",
+      "version": "1.33.0",
+      "license": "MPL-2.0",
+      "development": true,
+      "files": [
+        "licenses/npm/lightningcss-linux-x64-gnu/LICENSE"
+      ]
+    },
+    {
+      "name": "nanoid",
+      "version": "3.3.19",
+      "license": "MIT",
+      "development": true,
+      "files": [
+        "licenses/npm/nanoid/LICENSE"
+      ]
+    },
+    {
+      "name": "node-addon-api",
+      "version": "7.1.1",
+      "license": "MIT",
+      "development": true,
+      "files": [
+        "licenses/npm/node-addon-api/LICENSE.md"
+      ]
+    },
+    {
+      "name": "picocolors",
+      "version": "1.1.1",
+      "license": "ISC",
+      "development": true,
+      "files": [
+        "licenses/npm/picocolors/LICENSE"
+      ]
+    },
+    {
+      "name": "picomatch",
+      "version": "4.0.7",
+      "license": "MIT",
+      "development": true,
+      "files": [
+        "licenses/npm/picomatch/LICENSE"
+      ]
+    },
+    {
+      "name": "playwright",
+      "version": "1.63.0",
+      "license": "Apache-2.0",
+      "development": true,
+      "files": [
+        "licenses/npm/playwright/LICENSE",
+        "licenses/npm/playwright/NOTICE"
+      ]
+    },
+    {
+      "name": "playwright-core",
+      "version": "1.63.0",
+      "license": "Apache-2.0",
+      "development": true,
+      "files": [
+        "licenses/npm/playwright-core/LICENSE",
+        "licenses/npm/playwright-core/NOTICE"
+      ]
+    },
+    {
+      "name": "postcss",
+      "version": "8.5.28",
+      "license": "MIT",
+      "development": true,
+      "files": [
+        "licenses/npm/postcss/LICENSE"
+      ]
+    },
+    {
+      "name": "prettier",
+      "version": "3.9.6",
+      "license": "MIT",
+      "development": true,
+      "files": [
+        "licenses/npm/prettier/LICENSE"
+      ]
+    },
+    {
+      "name": "react",
+      "version": "19.3.0",
+      "license": "MIT",
+      "development": false,
+      "files": [
+        "licenses/npm/react/LICENSE"
+      ]
+    },
+    {
+      "name": "react-dom",
+      "version": "19.3.0",
+      "license": "MIT",
+      "development": false,
+      "files": [
+        "licenses/npm/react-dom/LICENSE"
+      ]
+    },
+    {
+      "name": "readdirp",
+      "version": "5.1.1",
+      "license": "MIT",
+      "development": true,
+      "files": [
+        "licenses/npm/readdirp/LICENSE"
+      ]
+    },
+    {
+      "name": "rolldown",
+      "version": "1.2.8",
+      "license": "MIT",
+      "development": true,
+      "files": [
+        "licenses/npm/rolldown/LICENSE"
+      ]
+    },
+    {
+      "name": "sass",
+      "version": "1.104.1",
+      "license": "MIT",
+      "development": true,
+      "files": [
+        "licenses/npm/sass/LICENSE"
+      ]
+    },
+    {
+      "name": "scheduler",
+      "version": "0.28.0",
+      "license": "MIT",
+      "development": false,
+      "files": [
+        "licenses/npm/scheduler/LICENSE"
+      ]
+    },
+    {
+      "name": "source-map-js",
+      "version": "1.2.1",
+      "license": "BSD-3-Clause",
+      "development": true,
+      "files": [
+        "licenses/npm/source-map-js/LICENSE"
+      ]
+    },
+    {
+      "name": "tinyglobby",
+      "version": "0.2.17",
+      "license": "MIT",
+      "development": true,
+      "files": [
+        "licenses/npm/tinyglobby/LICENSE"
+      ]
+    },
+    {
+      "name": "typescript",
+      "version": "7.0.2",
+      "license": "Apache-2.0",
+      "development": true,
+      "files": [
+        "licenses/npm/typescript/LICENSE",
+        "licenses/npm/typescript/NOTICE.txt"
+      ]
+    },
+    {
+      "name": "undici-types",
+      "version": "8.9.0",
+      "license": "MIT",
+      "development": true,
+      "files": [
+        "licenses/npm/undici-types/LICENSE"
+      ]
+    },
+    {
+      "name": "vite",
+      "version": "8.3.0",
+      "license": "MIT",
+      "development": true,
+      "files": [
+        "licenses/npm/vite/LICENSE.md"
+      ]
+    }
+  ],
+  "rust": [
+    {
+      "name": "approx",
+      "version": "0.5.1",
+      "license": "Apache-2.0",
+      "files": [
+        "licenses/rust/approx/LICENSE"
+      ]
+    },
+    {
+      "name": "autocfg",
+      "version": "1.5.1",
+      "license": "Apache-2.0 OR MIT",
+      "files": [
+        "licenses/rust/autocfg/LICENSE-MIT",
+        "licenses/rust/autocfg/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "bumpalo",
+      "version": "3.20.3",
+      "license": "MIT OR Apache-2.0",
+      "files": [
+        "licenses/rust/bumpalo/LICENSE-MIT",
+        "licenses/rust/bumpalo/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "cfg-if",
+      "version": "1.0.4",
+      "license": "MIT OR Apache-2.0",
+      "files": [
+        "licenses/rust/cfg-if/LICENSE-MIT",
+        "licenses/rust/cfg-if/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "itoa",
+      "version": "1.0.18",
+      "license": "MIT OR Apache-2.0",
+      "files": [
+        "licenses/rust/itoa/LICENSE-MIT",
+        "licenses/rust/itoa/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "memchr",
+      "version": "2.8.3",
+      "license": "Unlicense OR MIT",
+      "files": [
+        "licenses/rust/memchr/LICENSE-MIT",
+        "licenses/rust/memchr/COPYING"
+      ]
+    },
+    {
+      "name": "num-traits",
+      "version": "0.2.19",
+      "license": "MIT OR Apache-2.0",
+      "files": [
+        "licenses/rust/num-traits/LICENSE-MIT",
+        "licenses/rust/num-traits/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "once_cell",
+      "version": "1.21.4",
+      "license": "MIT OR Apache-2.0",
+      "files": [
+        "licenses/rust/once_cell/LICENSE-MIT",
+        "licenses/rust/once_cell/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "proc-macro2",
+      "version": "1.0.107",
+      "license": "MIT OR Apache-2.0",
+      "files": [
+        "licenses/rust/proc-macro2/LICENSE-MIT",
+        "licenses/rust/proc-macro2/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "quote",
+      "version": "1.0.47",
+      "license": "MIT OR Apache-2.0",
+      "files": [
+        "licenses/rust/quote/LICENSE-MIT",
+        "licenses/rust/quote/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "rustversion",
+      "version": "1.0.23",
+      "license": "MIT OR Apache-2.0",
+      "files": [
+        "licenses/rust/rustversion/LICENSE-MIT",
+        "licenses/rust/rustversion/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "serde",
+      "version": "1.0.229",
+      "license": "MIT OR Apache-2.0",
+      "files": [
+        "licenses/rust/serde/LICENSE-MIT",
+        "licenses/rust/serde/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "serde_core",
+      "version": "1.0.229",
+      "license": "MIT OR Apache-2.0",
+      "files": [
+        "licenses/rust/serde_core/LICENSE-MIT",
+        "licenses/rust/serde_core/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "serde_derive",
+      "version": "1.0.229",
+      "license": "MIT OR Apache-2.0",
+      "files": [
+        "licenses/rust/serde_derive/LICENSE-MIT",
+        "licenses/rust/serde_derive/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "serde_json",
+      "version": "1.0.151",
+      "license": "MIT OR Apache-2.0",
+      "files": [
+        "licenses/rust/serde_json/LICENSE-MIT",
+        "licenses/rust/serde_json/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "statrs",
+      "version": "0.18.0",
+      "license": "MIT",
+      "files": [
+        "licenses/rust/statrs/LICENSE.md"
+      ]
+    },
+    {
+      "name": "syn",
+      "version": "3.0.5",
+      "license": "MIT OR Apache-2.0",
+      "files": [
+        "licenses/rust/syn/LICENSE-MIT",
+        "licenses/rust/syn/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "unicode-ident",
+      "version": "1.0.24",
+      "license": "(MIT OR Apache-2.0) AND Unicode-3.0",
+      "files": [
+        "licenses/rust/unicode-ident/LICENSE-MIT",
+        "licenses/rust/unicode-ident/LICENSE-UNICODE",
+        "licenses/rust/unicode-ident/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "wasm-bindgen",
+      "version": "0.2.128",
+      "license": "MIT OR Apache-2.0",
+      "files": [
+        "licenses/rust/wasm-bindgen/LICENSE-MIT",
+        "licenses/rust/wasm-bindgen/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "wasm-bindgen-macro",
+      "version": "0.2.128",
+      "license": "MIT OR Apache-2.0",
+      "files": [
+        "licenses/rust/wasm-bindgen-macro/LICENSE-MIT",
+        "licenses/rust/wasm-bindgen-macro/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "wasm-bindgen-macro-support",
+      "version": "0.2.128",
+      "license": "MIT OR Apache-2.0",
+      "files": [
+        "licenses/rust/wasm-bindgen-macro-support/LICENSE-MIT",
+        "licenses/rust/wasm-bindgen-macro-support/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "wasm-bindgen-shared",
+      "version": "0.2.128",
+      "license": "MIT OR Apache-2.0",
+      "files": [
+        "licenses/rust/wasm-bindgen-shared/LICENSE-MIT",
+        "licenses/rust/wasm-bindgen-shared/LICENSE-APACHE"
+      ]
+    },
+    {
+      "name": "zmij",
+      "version": "1.0.23",
+      "license": "MIT",
+      "files": [
+        "licenses/rust/zmij/LICENSE-MIT"
+      ]
+    }
+  ]
+}
