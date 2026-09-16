@@ -191,6 +191,20 @@ test("Nemeth and UEB preserve expressions and six-key input calculates", async (
   await page.getByLabel("Six Key Braille Input", { exact: true }).check();
   await nemeth.fill("");
   await nemeth.focus();
+  // Hold the next frame so a cursor update cannot silently cancel a newer
+  // selection. This also covers the timing that occurs on busy browsers.
+  await page.evaluate(() => {
+    const nativeFrame = window.requestAnimationFrame;
+    const queued: FrameRequestCallback[] = [];
+    window.requestAnimationFrame = (callback) => {
+      queued.push(callback);
+      return -queued.length;
+    };
+    (window as any).releaseBrailleFrame = () => {
+      window.requestAnimationFrame = nativeFrame;
+      for (const callback of queued) callback(performance.now());
+    };
+  });
   await page.keyboard.down("d");
   await page.keyboard.down("s");
   await page.keyboard.up("d");
@@ -204,7 +218,10 @@ test("Nemeth and UEB preserve expressions and six-key input calculates", async (
       }),
     )
     .toBe("2");
-  await nemeth.fill("⠆⠬⠂");
+  await nemeth.evaluate((element: HTMLInputElement) => element.select());
+  await page.evaluate(() => (window as any).releaseBrailleFrame());
+  await page.keyboard.insertText("⠆⠬⠂");
+  await expect(nemeth).toHaveValue("⠆⠬⠂");
   await expect(page.getByLabel("Result 3", { exact: true })).toBeVisible();
 });
 test("list comprehension, stable uniqueness, keyed sorting and statistics summary", async ({

@@ -53,6 +53,7 @@ export function BrailleField({
   };
   const ownLatex = useRef<string | null>(null),
     lastCode = useRef(code),
+    pendingCursor = useRef<number | null>(null),
     chord = useRef({ down: new Set<string>(), bits: 0 });
   function edit(value: string) {
     try {
@@ -76,12 +77,18 @@ export function BrailleField({
     const el = input.current!;
     const at = el.selectionStart ?? el.value.length,
       end = el.selectionEnd ?? at;
+    pendingCursor.current = at + value.length;
     edit(el.value.slice(0, at) + value + el.value.slice(end));
-    requestAnimationFrame(() => {
-      el.focus();
-      el.setSelectionRange(at + value.length, at + value.length);
-    });
   }
+  useLayoutEffect(() => {
+    // Restore the cursor with the committed value before another input event
+    // can select or replace text. A delayed frame would overwrite that selection.
+    const at = pendingCursor.current;
+    if (at === null || !input.current) return;
+    pendingCursor.current = null;
+    input.current.focus();
+    input.current.setSelectionRange(at, at);
+  });
   useEffect(() => {
     const codeChanged = lastCode.current !== code;
     lastCode.current = code;
