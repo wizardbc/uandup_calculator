@@ -499,7 +499,7 @@ export default function App() {
         <header className="app-header">
           <a
             className="wordmark"
-            aria-label="MathAI — licenses"
+            aria-label="About MathAI — WebAssembly, licenses and source"
             href="./licenses.html"
             target="_blank"
             rel="noreferrer"
@@ -894,7 +894,7 @@ export default function App() {
                   href="./licenses.html"
                   target="_blank"
                   rel="noreferrer"
-                  aria-label="Licenses and source"
+                  aria-label="About MathAI — WebAssembly, licenses and source"
                 >
                   <img src="./mathai-logo.png" alt="MathAI" />
                 </a>

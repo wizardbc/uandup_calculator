@@ -536,11 +536,19 @@ fn lex(input: &str) -> Result<Vec<Tok>, String> {
 }
 
 pub fn parse(input: &str) -> Result<Expr, String> {
+    parse_with_functions(input, None)
+}
+
+pub fn parse_with_functions(
+    input: &str,
+    functions: Option<&BTreeSet<String>>,
+) -> Result<Expr, String> {
     let text = normalize(input)?;
     let mut parser = Parser {
         tokens: lex(&text)?,
         pos: 0,
         depth: 0,
+        functions,
     };
     let expr = parser.expression(0)?;
     if parser.peek() != &Tok::End {
@@ -549,12 +557,13 @@ pub fn parse(input: &str) -> Result<Expr, String> {
     Ok(expr)
 }
 
-struct Parser {
+struct Parser<'a> {
     tokens: Vec<Tok>,
     pos: usize,
     depth: usize,
+    functions: Option<&'a BTreeSet<String>>,
 }
-impl Parser {
+impl Parser<'_> {
     fn peek(&self) -> &Tok {
         self.tokens.get(self.pos).unwrap_or(&Tok::End)
     }
@@ -606,7 +615,12 @@ impl Parser {
                         );
                     }
                     Expr::Call("derivative".into(), vec![body, variable, argument])
-                } else if self.peek() == &Tok::L('(') {
+                } else if self.peek() == &Tok::L('(')
+                    && !["pi", "e", "infinity"].contains(&name.as_str())
+                    && self.functions.is_none_or(|functions| {
+                        builtin(&name) || name.starts_with("log_") || functions.contains(&name)
+                    })
+                {
                     self.next();
                     let args = self.args(')')?;
                     Expr::Call(name, args)

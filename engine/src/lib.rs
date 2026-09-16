@@ -222,7 +222,7 @@ impl CalculatorEngine {
         if self.cache.len() > 400 {
             self.cache.clear();
         }
-        let parsed: Vec<_> = req
+        let mut parsed: Vec<_> = req
             .expressions
             .iter()
             .map(|row| {
@@ -238,6 +238,37 @@ impl CalculatorEngine {
                 }
             })
             .collect();
+        // Parentheses after a coefficient mean multiplication, while declared
+        // functions consume their argument before an outside power is applied.
+        let functions: BTreeSet<String> = parsed
+            .iter()
+            .flatten()
+            .flatten()
+            .filter_map(|ast| match ast {
+                Expr::Binary(op, lhs, _) if op == "=" => match lhs.as_ref() {
+                    Expr::Call(name, args)
+                        if args.iter().all(|arg| matches!(arg, Expr::Var(_))) =>
+                    {
+                        Some(name.clone())
+                    }
+                    _ => None,
+                },
+                _ => None,
+            })
+            .collect();
+        let context = functions.iter().cloned().collect::<Vec<_>>().join(",");
+        for (row, ast) in req.expressions.iter().zip(&mut parsed) {
+            if ast.is_some() {
+                *ast = Some(
+                    self.cache
+                        .entry(format!("{context}\0{}", row.latex))
+                        .or_insert_with(|| {
+                            parser::parse_with_functions(&row.latex, Some(&functions))
+                        })
+                        .clone(),
+                );
+            }
+        }
         let mut env = Environment {
             degrees: req.degrees,
             complex: req.complex,

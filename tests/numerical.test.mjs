@@ -187,3 +187,59 @@ test("regressions skip existing residual definitions without replacing their val
   assert.equal(result.rows[5].value, 27);
   assert.ok(Math.abs(result.rows[6].value) < 1e-8);
 });
+
+test("SAT geometry preserves powers after implicit coefficients and declared functions", () => {
+  const evaluate = (expressions) => {
+    const result = JSON.parse(
+      engine.calculate(
+        JSON.stringify({
+          expressions: expressions.map((latex, i) => ({
+            id: String(i),
+            latex,
+          })),
+          scientific: false,
+          viewport: {
+            xMin: -10,
+            xMax: 10,
+            yMin: -10,
+            yMax: 10,
+            width: 800,
+            height: 800,
+          },
+        }),
+      ),
+    );
+    assert.ok(!result.error, result.error);
+    for (const row of result.rows) assert.ok(!row.error, row.error);
+    return result.rows;
+  };
+  const rows = evaluate([
+    String.raw`\pi(5)^2`,
+    String.raw`\pi(3)^2(10)`,
+    "e(2)^2",
+    "a=3",
+    "a(2)^2",
+    "f(x)=x+1",
+    "f(2)^2",
+    "h=1",
+    "k=3",
+    "g(x)=a(x-h)^2+k",
+    "g(3)",
+  ]);
+  for (const [i, expected] of [
+    [0, 25 * Math.PI],
+    [1, 90 * Math.PI],
+    [2, 4 * Math.E],
+    [4, 12],
+    [6, 9],
+    [10, 15],
+  ]) {
+    assert.ok(
+      Math.abs(rows[i].value - expected) < 1e-10,
+      `${i}: ${rows[i].value} != ${expected}`,
+    );
+  }
+  // The same cached expression changes meaning when a coefficient becomes a function.
+  assert.equal(evaluate(["a(x)=x+1", "a(2)^2"])[1].value, 9);
+  assert.equal(evaluate(["a=3", "a(2)^2"])[1].value, 12);
+});
