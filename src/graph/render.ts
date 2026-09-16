@@ -1,12 +1,56 @@
-import type { GraphSettings, Item, Scene, Viewport, Interest } from "../types";
+import type {
+  GraphSettings,
+  Item,
+  Scene,
+  Viewport,
+  Interest,
+  PlotStyle,
+  RowResult,
+} from "../types";
+import { COLORS } from "../types";
+export function graphItem(items: Item[], id: string): Item | undefined {
+  const [owner, column] = id.split(/:plot:|:regression/);
+  const item = items.find((i) => i.id === owner);
+  if (item?.type !== "table") return item;
+  if (id.endsWith(":regression"))
+    return {
+      ...item,
+      hidden: item.hidden || Boolean(item.regression?.hidden),
+      color: item.regression?.color ?? "#6042a6",
+    };
+  const col = column ? Number(column) : 1;
+  return {
+    ...item,
+    hidden: item.hidden || Boolean(item.columnHidden?.[col]),
+    color:
+      item.columnColors?.[col] ??
+      (col === 1 ? item.color : COLORS[col % COLORS.length]),
+  };
+}
 export const px = (x: number, v: Viewport) =>
-  ((x - v.xMin) * v.width) / (v.xMax - v.xMin) + 0.5;
+  ((axisValue(x, v.xLog) - axisValue(v.xMin, v.xLog)) * v.width) /
+    (axisValue(v.xMax, v.xLog) - axisValue(v.xMin, v.xLog)) +
+  0.5;
 export const py = (y: number, v: Viewport) =>
-  ((v.yMax - y) * v.height) / (v.yMax - v.yMin) + 0.5;
+  ((axisValue(v.yMax, v.yLog) - axisValue(y, v.yLog)) * v.height) /
+    (axisValue(v.yMax, v.yLog) - axisValue(v.yMin, v.yLog)) +
+  0.5;
 export const worldX = (x: number, v: Viewport) =>
-  v.xMin + ((x - 0.5) / v.width) * (v.xMax - v.xMin);
+  axisInverse(
+    axisValue(v.xMin, v.xLog) +
+      ((x - 0.5) / v.width) *
+        (axisValue(v.xMax, v.xLog) - axisValue(v.xMin, v.xLog)),
+    v.xLog,
+  );
 export const worldY = (y: number, v: Viewport) =>
-  v.yMax - ((y - 0.5) / v.height) * (v.yMax - v.yMin);
+  axisInverse(
+    axisValue(v.yMax, v.yLog) -
+      ((y - 0.5) / v.height) *
+        (axisValue(v.yMax, v.yLog) - axisValue(v.yMin, v.yLog)),
+    v.yLog,
+  );
+export const axisValue = (n: number, log = false) => (log ? Math.log10(n) : n);
+export const axisInverse = (n: number, log = false) => (log ? 10 ** n : n);
 export function niceStep(span: number, size: number) {
   const target = (span * 80) / size;
   const power = 10 ** Math.floor(Math.log10(target));
@@ -19,6 +63,72 @@ export function formatCoordinate(n: number, digits = 6) {
   if (Math.abs(n) >= 1e8 || Math.abs(n) < 1e-5)
     return Number(n.toPrecision(digits)).toString();
   return Number(n.toFixed(digits)).toString();
+}
+export function styleValue(
+  row: RowResult,
+  key: string,
+  index: number,
+  fallback: number,
+) {
+  const values = row.styleValues?.[key];
+  return values
+    ? values.length === 1
+      ? values[0]
+      : (values[index] ?? 0)
+    : fallback;
+}
+export function itemPlotStyle(item: Item, id?: string): PlotStyle {
+  return item.type === "expression"
+    ? (item.plotStyle ?? {})
+    : (item.columnStyles?.[Number(id?.split(":plot:")[1] ?? 1)] ?? {});
+}
+function pointShape(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+  style: PlotStyle,
+) {
+  const r = Math.min(2000, Math.max(0, size / 2));
+  if (!r) return;
+  const shape = style.pointStyle ?? "point";
+  ctx.beginPath();
+  if (shape === "point" || shape === "open") ctx.arc(x, y, r, 0, Math.PI * 2);
+  else if (shape === "square") ctx.rect(x - r, y - r, r * 2, r * 2);
+  else if (shape === "cross" || shape === "plus") {
+    if (shape === "cross") {
+      ctx.moveTo(x - r * 0.8, y - r * 0.8);
+      ctx.lineTo(x + r * 0.8, y + r * 0.8);
+      ctx.moveTo(x - r * 0.8, y + r * 0.8);
+      ctx.lineTo(x + r * 0.8, y - r * 0.8);
+    } else {
+      ctx.moveTo(x - r, y);
+      ctx.lineTo(x + r, y);
+      ctx.moveTo(x, y - r);
+      ctx.lineTo(x, y + r);
+    }
+  } else {
+    const n = shape === "triangle" ? 3 : shape === "diamond" ? 4 : 10;
+    for (let i = 0; i < n; i++) {
+      const rad = r * (shape === "star" && i % 2 ? 0.43 : 1),
+        angle = -Math.PI / 2 + (2 * Math.PI * i) / n;
+      const a = x + Math.cos(angle) * rad,
+        b = y + Math.sin(angle) * rad;
+      if (i === 0) ctx.moveTo(a, b);
+      else ctx.lineTo(a, b);
+    }
+    ctx.closePath();
+  }
+  ctx.lineWidth = Math.max(1.5, r * 0.32);
+  if (shape === "open" || shape === "cross" || shape === "plus") ctx.stroke();
+  else ctx.fill();
+  if (style.pointOutline) {
+    ctx.save();
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.restore();
+  }
 }
 export function renderGraph(
   ctx: CanvasRenderingContext2D,
@@ -34,8 +144,8 @@ export function renderGraph(
   ctx.clearRect(0, 0, width, height);
   ctx.fillStyle = dark ? "#161616" : "#fff";
   ctx.fillRect(0, 0, width, height);
-  const x0 = px(0, view),
-    y0 = py(0, view);
+  const x0 = view.xLog ? 0 : px(0, view),
+    y0 = view.yLog ? height : py(0, view);
   const sx =
     Number(settings.xStep) > 0
       ? Number(settings.xStep)
@@ -51,6 +161,35 @@ export function renderGraph(
     vertical: boolean,
     major: boolean,
   ) {
+    if (vertical ? view.xLog : view.yLog) {
+      const logMin = Math.floor(Math.log10(min)),
+        logMax = Math.ceil(Math.log10(max));
+      if (logMax - logMin > 600) return;
+      ctx.beginPath();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = dark
+        ? major
+          ? "#777"
+          : "#3b3b3b"
+        : major
+          ? "#999"
+          : "#e0e0e0";
+      for (let power = logMin; power <= logMax; power++)
+        for (let m = major ? 1 : 2; m <= (major ? 1 : 9); m++) {
+          const n = m * 10 ** power;
+          if (n < min || n > max) continue;
+          const p = Math.round(vertical ? px(n, view) : py(n, view)) + 0.5;
+          if (vertical) {
+            ctx.moveTo(p, 0);
+            ctx.lineTo(p, height);
+          } else {
+            ctx.moveTo(0, p);
+            ctx.lineTo(width, p);
+          }
+        }
+      ctx.stroke();
+      return;
+    }
     if (
       !(step > 0) ||
       !Number.isFinite(step) ||
@@ -171,8 +310,31 @@ export function renderGraph(
     ctx.fillText(text, x, y);
   };
   if (settings.axisNumbers) {
+    for (const axis of ["x", "y"] as const)
+      if (view[`${axis}Log`] && settings[`${axis}Axis`]) {
+        const lo = Math.ceil(Math.log10(view[`${axis}Min`])),
+          hi = Math.floor(Math.log10(view[`${axis}Max`]));
+        for (let p = lo; p <= hi && p - lo < 600; p++) {
+          const n = 10 ** p;
+          if (axis === "x")
+            label(
+              formatCoordinate(n),
+              Math.min(width - 12, Math.max(12, px(n, view))),
+              Math.max(12, Math.min(height - 10, y0 + 13)),
+              "center",
+            );
+          else
+            label(
+              formatCoordinate(n),
+              Math.max(24, Math.min(width - 4, x0 - 5)),
+              py(n, view),
+              "right",
+            );
+        }
+      }
     if (
       settings.xAxis &&
+      !view.xLog &&
       (view.xMax - view.xMin) / sx < 300 &&
       Number.isSafeInteger(Math.ceil(view.xMin / sx)) &&
       Number.isSafeInteger(Math.floor(view.xMax / sx))
@@ -197,6 +359,7 @@ export function renderGraph(
       }
     if (
       settings.yAxis &&
+      !view.yLog &&
       (view.yMax - view.yMin) / sy < 300 &&
       Number.isSafeInteger(Math.ceil(view.yMin / sy)) &&
       Number.isSafeInteger(Math.floor(view.yMax / sy))
@@ -219,6 +382,8 @@ export function renderGraph(
     if (
       settings.xAxis &&
       settings.yAxis &&
+      !view.xLog &&
+      !view.yLog &&
       x0 >= 0 &&
       x0 <= width &&
       y0 >= 0 &&
@@ -241,37 +406,127 @@ export function renderGraph(
       "left",
     );
   if (scene) {
-    const itemMap = new Map(items.map((i) => [i.id, i]));
     for (const row of scene.rows) {
-      const item = itemMap.get(row.id);
+      const item = graphItem(items, row.id);
       if (!item || item.hidden) continue;
       const opacity = item.type === "expression" ? (item.opacity ?? 1) : 1;
-      ctx.strokeStyle = item.color;
-      ctx.fillStyle = item.color;
-      ctx.lineWidth = item.type === "expression" ? (item.lineWidth ?? 3) : 3;
+      const style = itemPlotStyle(item, row.id);
+      const defaultWidth =
+        item.type === "expression" ? (item.lineWidth ?? 2.5) : 2.5;
+      ctx.strokeStyle = row.strokeColors?.[0] ?? item.color;
+      ctx.fillStyle = row.strokeColors?.[0] ?? item.color;
+      ctx.lineWidth = defaultWidth;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
+      let objectIndex = 0;
       for (const geometry of row.geometry) {
+        const isPoint = geometry.kind === "points";
+        if (geometry.kind === "triangles" && style.fill === false) continue;
+        if (!isPoint && geometry.kind !== "triangles" && style.lines === false)
+          continue;
+        if (
+          row.strokeColors &&
+          row.strokeColors.length > 1 &&
+          objectIndex >= row.strokeColors.length
+        )
+          continue;
+        ctx.strokeStyle = ctx.fillStyle =
+          row.strokeColors?.[row.strokeColors.length === 1 ? 0 : objectIndex] ??
+          item.color;
+        const thickness = Math.min(
+          1000,
+          Math.max(0, styleValue(row, "lineWidth", objectIndex, defaultWidth)),
+        );
+        if (
+          thickness === 0 &&
+          geometry.kind !== "points" &&
+          geometry.kind !== "triangles"
+        ) {
+          objectIndex++;
+          continue;
+        }
+        ctx.lineWidth = thickness || 1;
+        const lineOpacity = Math.min(
+          1,
+          Math.max(0, styleValue(row, "lineOpacity", objectIndex, opacity)),
+        );
         ctx.globalAlpha =
-          geometry.kind === "triangles" ? 0.22 * opacity : opacity;
+          geometry.kind === "triangles"
+            ? Math.min(
+                1,
+                Math.max(0, styleValue(row, "fillOpacity", objectIndex, 0.4)),
+              )
+            : lineOpacity;
         ctx.setLineDash(
           geometry.dashed ||
-            (item.type === "expression" && item.lineStyle === "dashed")
+            (style.lineStyle ??
+              (item.type === "expression" ? item.lineStyle : undefined)) ===
+              "dashed"
             ? [8, 6]
-            : item.type === "expression" && item.lineStyle === "dotted"
+            : (style.lineStyle ??
+                  (item.type === "expression" ? item.lineStyle : undefined)) ===
+                "dotted"
               ? [1, 5]
               : [],
         );
         const data = scene.data;
         const end = geometry.start + geometry.count;
         if (geometry.kind === "points") {
+          if (style.lines) {
+            ctx.beginPath();
+            let pen = false;
+            for (let i = geometry.start; i + 1 < end; i += 2) {
+              const x = px(data[i], view),
+                y = py(data[i + 1], view);
+              if (!Number.isFinite(x + y)) {
+                pen = false;
+                continue;
+              }
+              if (pen) ctx.lineTo(x, y);
+              else ctx.moveTo(x, y);
+              pen = true;
+            }
+            ctx.stroke();
+          }
+          if (style.points === false) continue;
           for (let i = geometry.start; i + 1 < end; i += 2) {
+            const index = (i - geometry.start) / 2;
+            if (
+              row.strokeColors &&
+              row.strokeColors.length > 1 &&
+              index >= row.strokeColors.length
+            )
+              break;
+            ctx.strokeStyle = ctx.fillStyle =
+              row.strokeColors?.[row.strokeColors.length === 1 ? 0 : index] ??
+              item.color;
+            ctx.globalAlpha = Math.min(
+              1,
+              Math.max(0, styleValue(row, "pointOpacity", index, 1)),
+            );
             const x = px(data[i], view),
               y = py(data[i + 1], view);
             if (!Number.isFinite(x + y)) continue;
-            ctx.beginPath();
-            ctx.arc(x, y, 4.5, 0, Math.PI * 2);
-            ctx.fill();
+            if ((style.dragMode ?? row.defaultDragMode ?? "none") !== "none") {
+              ctx.save();
+              ctx.globalAlpha *= 0.3;
+              ctx.beginPath();
+              ctx.arc(x, y, 12, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.restore();
+            }
+            pointShape(
+              ctx,
+              x,
+              y,
+              styleValue(
+                row,
+                "pointSize",
+                index,
+                row.visualization?.kind === "dotplot" ? 14 : 8,
+              ),
+              style,
+            );
           }
         } else if (geometry.kind === "triangles") {
           ctx.beginPath();
@@ -306,6 +561,7 @@ export function renderGraph(
           }
           ctx.stroke();
         }
+        objectIndex++;
       }
       ctx.globalAlpha = 1;
       ctx.setLineDash([]);

@@ -28,3 +28,21 @@ run("wasm-bindgen", [
   "--out-name",
   "uandup_engine",
 ]);
+run("cargo", [
+  "build",
+  "--locked",
+  "--release",
+  "--target",
+  "wasm32-unknown-unknown",
+  "--manifest-path",
+  "accessibility/Cargo.toml",
+]);
+run("wasm-bindgen", [
+  "accessibility/target/wasm32-unknown-unknown/release/mathai_accessibility.wasm",
+  "--target",
+  "web",
+  "--out-dir",
+  "public/wasm",
+  "--out-name",
+  "mathai_accessibility",
+]);

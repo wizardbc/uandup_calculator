@@ -1,6 +1,9 @@
-import { useState } from "react";
-import type { GraphSettings, Viewport } from "../types";
+import { useRef, useState } from "react";
+import type { GraphSettings, Viewport, EngineInput } from "../types";
 import { formatCoordinate } from "../graph/render";
+import { ConstantField } from "./ConstantField";
+import { MathText } from "./MathField";
+import { evaluateConstant } from "../engine/constants";
 
 export function Settings({
   settings,
@@ -8,13 +11,17 @@ export function Settings({
   onSettings,
   onViewport,
   scientific = false,
+  expressions = [],
 }: {
   settings: GraphSettings;
   viewport: Viewport;
   onSettings: (settings: GraphSettings) => void;
   onViewport: (viewport: Viewport) => void;
   scientific?: boolean;
+  expressions?: EngineInput["expressions"];
 }) {
+  const latestViewport = useRef(viewport);
+  latestViewport.current = viewport;
   const [more, setMore] = useState(false);
   const [invalid, setInvalid] = useState("");
   const change = <K extends keyof GraphSettings>(
@@ -28,6 +35,7 @@ export function Settings({
       | "minorGrid"
       | "axisNumbers"
       | "arrows"
+      | "lockViewport"
       | "xAxis"
       | "yAxis",
     label: string,
@@ -41,21 +49,63 @@ export function Settings({
       {label}
     </label>
   );
-  function bounds(key: "xMin" | "xMax" | "yMin" | "yMax", value: string) {
-    const n = Number(value.replace("−", "-"));
-    const next = { ...viewport, [key]: n };
-    if (
-      !value.trim() ||
-      !Number.isFinite(n) ||
-      next.xMin >= next.xMax ||
-      next.yMin >= next.yMax
-    ) {
-      setInvalid("The minimum must be less than the maximum.");
-      return;
+  async function bounds(key: "xMin" | "xMax" | "yMin" | "yMax", value: string) {
+    try {
+      const n = await evaluateConstant(value, expressions, settings.degrees);
+      const next = { ...latestViewport.current, [key]: n };
+      if (
+        next.xMin >= next.xMax ||
+        next.yMin >= next.yMax ||
+        (settings.xLog && next.xMin <= 0) ||
+        (settings.yLog && next.yMin <= 0)
+      ) {
+        setInvalid(
+          "The minimum must be less than the maximum. Logarithmic bounds must be positive.",
+        );
+        return;
+      }
+      setInvalid("");
+      latestViewport.current = next;
+      onViewport(next);
+    } catch {
+      setInvalid("Enter a finite number for the axis bounds.");
     }
-    setInvalid("");
-    onViewport(next);
   }
+  const gridIcon = (polar: boolean) => (
+    <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true">
+      <circle
+        cx="14"
+        cy="14"
+        r="13"
+        fill={polar === settings.polar ? "#666" : "white"}
+        stroke="#888"
+      />
+      <g stroke={polar === settings.polar ? "#eee" : "#999"} strokeWidth=".7">
+        {polar ? (
+          <>
+            {[4, 8, 12].map((r) => (
+              <circle key={r} cx="14" cy="14" r={r} fill="none" />
+            ))}
+            {[0, 30, 60, 90, 120, 150].map((a) => (
+              <path key={a} d="M1 14H27" transform={`rotate(${a} 14 14)`} />
+            ))}
+          </>
+        ) : (
+          <>
+            {[-10, -6, -2, 2, 6, 10].map((d) => {
+              const span = Math.sqrt(169 - d * d);
+              return (
+                <path
+                  key={d}
+                  d={`M${14 + d} ${14 - span}V${14 + span}M${14 - span} ${14 + d}H${14 + span}`}
+                />
+              );
+            })}
+          </>
+        )}
+      </g>
+    </svg>
+  );
   return (
     <div
       className={`settings-panel popover ${scientific ? "scientific-settings" : ""}`}
@@ -79,7 +129,47 @@ export function Settings({
           A
         </button>
       </div>
-      {check("reverseContrast", "Reverse contrast")}
+      {check(
+        "reverseContrast",
+        scientific ? "Reverse Contrast" : "Reverse contrast",
+      )}
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={settings.braille !== "none"}
+          onChange={(e) =>
+            change("braille", e.target.checked ? "Nemeth" : "none")
+          }
+        />
+        Braille Mode
+      </label>
+      {settings.braille !== "none" && (
+        <div className="braille-options">
+          <div className="scale-choice">
+            {(["Nemeth", "UEB"] as const).map((code) => (
+              <button
+                key={code}
+                className={settings.braille === code ? "selected" : ""}
+                onClick={() => change("braille", code)}
+              >
+                {code}
+              </button>
+            ))}
+          </div>
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={settings.sixKey}
+              onChange={(e) => change("sixKey", e.target.checked)}
+            />
+            Six Key Braille Input
+          </label>
+          <p>
+            Use a refreshable Braille display, or just type Braille with a
+            keyboard.
+          </p>
+        </div>
+      )}
       {!scientific && (
         <>
           <div className="settings-rule" />
@@ -92,14 +182,14 @@ export function Settings({
                   aria-label="Cartesian grid"
                   onClick={() => change("polar", false)}
                 >
-                  ▦
+                  {gridIcon(false)}
                 </button>
                 <button
                   className={settings.polar ? "selected" : ""}
                   aria-label="Polar grid"
                   onClick={() => change("polar", true)}
                 >
-                  ◎
+                  {gridIcon(true)}
                 </button>
               </div>
               {check("arrows", "Arrows")}
@@ -129,43 +219,47 @@ export function Settings({
                 </label>
               </div>
               <div className="axis-bounds">
-                <input
-                  key={`${axis}min-${viewport[`${axis}Min`]}`}
-                  aria-label={`${axis.toUpperCase()} axis minimum`}
-                  defaultValue={formatCoordinate(viewport[`${axis}Min`])}
-                  style={{
-                    width: `${Math.max(4, formatCoordinate(viewport[`${axis}Min`]).length) * 0.53 + 0.3}em`,
-                  }}
-                  onBlur={(e) => bounds(`${axis}Min`, e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") e.currentTarget.blur();
-                  }}
+                <ConstantField
+                  value={formatCoordinate(viewport[`${axis}Min`])}
+                  label={`${axis.toUpperCase()} axis minimum`}
+                  onCommit={(value) => void bounds(`${axis}Min`, value)}
                 />
-                <span>
-                  ≤ <i>{axis}</i> ≤
-                </span>
-                <input
-                  key={`${axis}max-${viewport[`${axis}Max`]}`}
-                  aria-label={`${axis.toUpperCase()} axis maximum`}
-                  defaultValue={formatCoordinate(viewport[`${axis}Max`])}
-                  style={{
-                    width: `${Math.max(4, formatCoordinate(viewport[`${axis}Max`]).length) * 0.53 + 0.3}em`,
-                  }}
-                  onBlur={(e) => bounds(`${axis}Max`, e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") e.currentTarget.blur();
-                  }}
+                <MathText latex={`\\le ${axis}\\le`} />
+                <ConstantField
+                  value={formatCoordinate(viewport[`${axis}Max`])}
+                  label={`${axis.toUpperCase()} axis maximum`}
+                  onCommit={(value) => void bounds(`${axis}Max`, value)}
                 />
-                <label>
-                  Step:{" "}
-                  <input
-                    aria-label={`${axis.toUpperCase()} axis step`}
-                    value={settings[axis === "x" ? "xStep" : "yStep"]}
-                    onChange={(e) =>
-                      change(axis === "x" ? "xStep" : "yStep", e.target.value)
-                    }
-                  />
-                </label>
+                {!settings[`${axis}Log`] && (
+                  <label>
+                    Step:{" "}
+                    <ConstantField
+                      value={settings[`${axis}Step`]}
+                      label={`${axis.toUpperCase()} axis step`}
+                      onCommit={(value) => {
+                        if (!value.trim()) {
+                          change(`${axis}Step`, "");
+                          return;
+                        }
+                        void evaluateConstant(
+                          value,
+                          expressions,
+                          settings.degrees,
+                        )
+                          .then((n) => {
+                            if (n > 0) {
+                              setInvalid("");
+                              change(`${axis}Step`, String(n));
+                            } else
+                              setInvalid("The axis step must be positive.");
+                          })
+                          .catch(() =>
+                            setInvalid("Enter a positive axis step."),
+                          );
+                      }}
+                    />
+                  </label>
+                )}
               </div>
             </div>
           ))}
@@ -175,54 +269,79 @@ export function Settings({
             </div>
           )}
           <button className="more-options" onClick={() => setMore(!more)}>
-            {more ? "▾" : "▸"} More Options
+            <span className={`disclosure-triangle ${more ? "expanded" : ""}`} />{" "}
+            More Options
           </button>
           {more && (
             <div className="more-options-body">
-              <button
-                onClick={() => {
-                  const cx = (viewport.xMin + viewport.xMax) / 2;
-                  const half =
-                    (((viewport.yMax - viewport.yMin) / viewport.height) *
-                      viewport.width) /
-                    2;
-                  onViewport({ ...viewport, xMin: cx - half, xMax: cx + half });
-                }}
-              >
-                Square axes
-              </button>
-              <button
-                onClick={() =>
-                  onViewport({
-                    ...viewport,
-                    xMin: -10,
-                    xMax: 10,
-                    yMin: (-10 * viewport.height) / viewport.width,
-                    yMax: (10 * viewport.height) / viewport.width,
-                  })
-                }
-              >
-                Restore default view
-              </button>
+              {(["x", "y"] as const).map((axis) => (
+                <div className="axis-scale" key={axis}>
+                  <span>{axis.toUpperCase()}-Axis:</span>
+                  <div className="scale-choice">
+                    <button
+                      aria-label={`${axis.toUpperCase()} axis linear`}
+                      className={!settings[`${axis}Log`] ? "selected" : ""}
+                      onClick={() => change(`${axis}Log`, false)}
+                    >
+                      Linear
+                    </button>
+                    <button
+                      aria-label={`${axis.toUpperCase()} axis logarithmic`}
+                      className={settings[`${axis}Log`] ? "selected" : ""}
+                      onClick={() => change(`${axis}Log`, true)}
+                    >
+                      Logarithmic
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {check("lockViewport", "Lock Viewport")}
             </div>
           )}
           <div className="settings-rule" />
         </>
       )}
-      <div className="segmented angle-mode">
+      {scientific && <div className="settings-rule" />}
+      <div className="complex-mode-row">
+        <span>Complex Mode</span>
         <button
-          className={!settings.degrees ? "selected" : ""}
-          onClick={() => change("degrees", false)}
+          role="checkbox"
+          aria-label="Complex Mode"
+          aria-checked={settings.complex}
+          className={`mode-toggle ${settings.complex ? "checked" : ""}`}
+          onClick={() => change("complex", !settings.complex)}
         >
-          Radians
-        </button>
-        <button
-          className={settings.degrees ? "selected" : ""}
-          onClick={() => change("degrees", true)}
-        >
-          Degrees
+          <span />
         </button>
       </div>
+      {settings.complex && (
+        <div className="complex-hint">
+          Hint: try writing <i>i</i>
+          <sup>2</sup> or √−4.
+          {!scientific && (
+            <>
+              <br />
+              Note: complex values will be plotted as (real, imag)
+            </>
+          )}
+        </div>
+      )}
+      {!scientific && (
+        <div className="segmented angle-mode">
+          <button
+            className={!settings.degrees ? "selected" : ""}
+            onClick={() => change("degrees", false)}
+          >
+            Radians
+          </button>
+          <button
+            className={settings.degrees ? "selected" : ""}
+            onClick={() => change("degrees", true)}
+          >
+            Degrees
+          </button>
+        </div>
+      )}
     </div>
   );
 }

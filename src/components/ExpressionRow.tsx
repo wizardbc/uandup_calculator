@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { RegressionResult } from "./RegressionResult";
+import { Slider } from "./Slider";
+import { ListResult } from "./ListResult";
+import { TableRegression } from "./TableRegression";
+import { useContext, useEffect, useRef, useState } from "react";
+import { BrailleContext } from "../accessibility/context";
+import { BrailleText } from "./BrailleField";
 import {
   COLORS,
   type Expression,
@@ -8,6 +14,12 @@ import {
 } from "../types";
 import { MathField, MathText, type MathAPI } from "./MathField";
 import { Icon } from "./Icons";
+import { InferenceResult } from "./InferenceResult";
+import { StatisticsResult } from "./StatisticsResult";
+import { VisualizationResult } from "./VisualizationResult";
+import { resultLatex } from "./resultLatex";
+import { ExpressionStyle } from "./ExpressionStyle";
+import { DistributionResult } from "./DistributionResult";
 
 export function ExpressionRow({
   item,
@@ -23,6 +35,12 @@ export function ExpressionRow({
   onSliderCreate,
   register,
   onReorder,
+  onExport,
+  customColors = [],
+  columnResults = [],
+  computed = [],
+  fitResult,
+  onZoomFit,
 }: {
   item: Item;
   index: number;
@@ -37,40 +55,35 @@ export function ExpressionRow({
   onSliderCreate: (names: string[]) => void;
   register: (id: string, api: MathAPI | null) => void;
   onReorder: (direction: -1 | 1) => void;
+  onExport: (latex: string) => void;
+  customColors?: { name: string; colors: string[] }[];
+  columnResults?: (RowResult | undefined)[];
+  computed?: boolean[];
+  fitResult?: RowResult;
+  onZoomFit?: () => void;
 }) {
   const [styleOpen, setStyleOpen] = useState(false);
-  const [playing, setPlaying] = useState(false);
-  const [sliderSettings, setSliderSettings] = useState(false);
-  const lastItem = useRef(item);
-  lastItem.current = item;
-  useEffect(() => {
-    if (!playing || item.type !== "expression" || !result?.slider) return;
-    let last = performance.now();
-    let frame = 0;
-    const tick = (now: number) => {
-      if (now - last >= 65) {
-        const current = lastItem.current as Expression;
-        const lo = current.sliderMin ?? -10,
-          hi = current.sliderMax ?? 10,
-          step = current.sliderStep ?? 0.1;
-        const previous = Number(current.latex.split("=")[1]) || 0;
-        const value = previous + step > hi ? lo : previous + step;
-        onChange({
-          ...current,
-          latex: `${result.slider}=${Number(value.toFixed(8))}`,
-        });
-        last = now;
-      }
-      frame = requestAnimationFrame(tick);
-    };
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, [playing, result?.slider]);
+  const { code: brailleCode } = useContext(BrailleContext);
+  const held = useRef(false);
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (holdTimer.current) clearTimeout(holdTimer.current);
+    },
+    [],
+  );
   const isGraph =
     !!result?.geometry.length ||
     item.type === "table" ||
     item.hidden ||
-    ["graph", "function", "point"].includes(result?.kind ?? "");
+    [
+      "graph",
+      "function",
+      "point",
+      "tone",
+      "distribution",
+      "visualization",
+    ].includes(result?.kind ?? "");
   return (
     <div
       className={`expression-row ${active ? "active" : ""} ${item.type === "table" ? "table-row" : ""} ${result?.error ? "has-error" : ""}`}
@@ -78,18 +91,80 @@ export function ExpressionRow({
     >
       <div className="expression-gutter" onClick={onSelect}>
         <span className="row-number">{index + 1}</span>
-        {(isGraph || result?.error) && (
+        {item.type === "table" && (
+          <>
+            <button
+              className="table-add-regression"
+              aria-label="Add Regression"
+              disabled={!!item.regression}
+              onClick={() =>
+                onChange({
+                  ...item,
+                  regression: {
+                    model: "linear",
+                    xColumn: 0,
+                    yColumn: 1,
+                    color: "#6042a6",
+                    hidden: false,
+                    residualVariable: `e_{${index + 1}}`,
+                  },
+                })
+              }
+            >
+              <svg viewBox="0 0 24 24" width="23" height="23">
+                <path d="M7 21 17 3" stroke="currentColor" strokeWidth="2.5" />
+                <g fill="currentColor">
+                  <circle cx="7" cy="11" r="2" />
+                  <circle cx="17" cy="8" r="2" />
+                  <circle cx="12" cy="17" r="2" />
+                </g>
+              </svg>
+            </button>
+            <button
+              className="table-zoom-fit"
+              aria-label="Zoom Fit"
+              onClick={onZoomFit}
+            >
+              <svg viewBox="0 0 24 24" width="24" height="24">
+                <circle
+                  cx="10"
+                  cy="10"
+                  r="6"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                />
+                <path
+                  d="m14 14 6 6M7 10h6M10 7v6"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                />
+              </svg>
+            </button>
+          </>
+        )}
+        {item.type !== "table" && (isGraph || result?.error) && (
           <button
             className={`expression-icon ${item.hidden ? "hidden-graph" : ""}`}
-            style={{ backgroundColor: result?.error ? "#c74440" : item.color }}
+            style={{
+              backgroundColor: result?.error
+                ? "#c74440"
+                : (result?.strokeColors?.[0] ?? item.color),
+            }}
             aria-label={
               result?.error
                 ? "Expression error"
-                : `${item.hidden ? "Show" : "Hide"} graph ${index + 1}`
+                : result?.kind === "tone"
+                  ? `${item.hidden ? "Unmute" : "Mute"} tone ${index + 1}`
+                  : `${item.hidden ? "Show" : "Hide"} graph ${index + 1}`
             }
             title="Click to show or hide. Hold or right-click for style."
             onClick={(e) => {
               e.stopPropagation();
+              if (held.current) {
+                held.current = false;
+                return;
+              }
               if (!result?.error) onChange({ ...item, hidden: !item.hidden });
             }}
             onContextMenu={(e) => {
@@ -97,32 +172,43 @@ export function ExpressionRow({
               setStyleOpen(!styleOpen);
             }}
             onPointerDown={(e) => {
-              if (e.button === 0) {
-                const id = setTimeout(() => setStyleOpen(true), 600);
-                const clear = () => {
-                  clearTimeout(id);
-                  window.removeEventListener("pointerup", clear);
-                };
-                window.addEventListener("pointerup", clear);
-              }
+              if (e.button !== 0) return;
+              held.current = false;
+              e.currentTarget.setPointerCapture(e.pointerId);
+              holdTimer.current = setTimeout(() => {
+                held.current = true;
+                setStyleOpen(true);
+              }, 600);
+            }}
+            onPointerUp={() => {
+              if (holdTimer.current) clearTimeout(holdTimer.current);
+            }}
+            onPointerCancel={() => {
+              if (holdTimer.current) clearTimeout(holdTimer.current);
             }}
           >
             {result?.error ? (
               <Icon name="warning" size={22} />
-            ) : item.type === "table" || result?.kind === "point" ? (
-              <span className="point-dots">⠿</span>
+            ) : result?.kind === "tone" ? (
+              <Icon name="audio" size={23} />
+            ) : result?.kind === "point" ||
+              result?.geometry.some((g) => g.kind === "points") ? (
+              <span
+                className={`point-dots ${result?.kind === "point" && (item.type === "expression" ? (item.plotStyle?.dragMode ?? result.defaultDragMode ?? "none") : "none") === "none" ? "single-point" : ""}`}
+              >
+                {(item.type === "expression"
+                  ? (item.plotStyle?.dragMode ??
+                    result?.defaultDragMode ??
+                    "none")
+                  : "none") !== "none"
+                  ? "✥"
+                  : result?.kind === "point"
+                    ? "●"
+                    : "⠿"}
+              </span>
             ) : (
               <Icon name="curve" size={24} />
             )}
-          </button>
-        )}
-        {result?.slider && (
-          <button
-            className="slider-play"
-            aria-label={playing ? "Pause slider" : "Play slider"}
-            onClick={() => setPlaying(!playing)}
-          >
-            <Icon name={playing ? "pause" : "play"} size={16} />
           </button>
         )}
       </div>
@@ -143,6 +229,84 @@ export function ExpressionRow({
               <div className="expression-error" role="status">
                 {result.error}
               </div>
+            )}
+            {(result?.kind === "point" ||
+              (result?.kind === "list" &&
+                result.geometry.some((g) => g.kind === "points"))) && (
+              <div className="point-label-row">
+                <label>
+                  <input
+                    type="checkbox"
+                    aria-label="Label visible"
+                    checked={item.plotStyle?.showLabel ?? false}
+                    onChange={(e) =>
+                      onChange({
+                        ...item,
+                        plotStyle: {
+                          ...item.plotStyle,
+                          showLabel: e.target.checked,
+                        },
+                      })
+                    }
+                  />
+                  {item.plotStyle?.showLabel ? "Label:" : "Label"}
+                </label>
+                {item.plotStyle?.showLabel && (
+                  <input
+                    aria-label="Point label"
+                    value={item.plotStyle?.label ?? ""}
+                    onChange={(e) =>
+                      onChange({
+                        ...item,
+                        plotStyle: { ...item.plotStyle, label: e.target.value },
+                      })
+                    }
+                  />
+                )}
+              </div>
+            )}
+            {result?.domain && (
+              <div className="curve-domain">
+                <MathField
+                  latex={result.domain.min}
+                  label={`domain ${result.domain.variable} Minimum`}
+                  onChange={(domainMin) => onChange({ ...item, domainMin })}
+                />
+                <MathText
+                  latex={`\\le ${result.domain.variable === "theta" ? "\\theta" : "t"}\\le`}
+                />
+                <MathField
+                  latex={result.domain.max}
+                  label={`domain ${result.domain.variable} Maximum`}
+                  onChange={(domainMax) => onChange({ ...item, domainMax })}
+                />
+              </div>
+            )}
+            {result?.inference && (
+              <InferenceResult
+                item={item}
+                result={result}
+                onChange={onChange}
+                onExport={onExport}
+              />
+            )}
+            {result?.statistics && (
+              <StatisticsResult data={result.statistics} onExport={onExport} />
+            )}
+            {result?.visualization && (
+              <VisualizationResult
+                item={item}
+                data={result.visualization}
+                onChange={onChange}
+              />
+            )}
+            {result?.distribution && (
+              <DistributionResult
+                item={item}
+                data={result.distribution}
+                onChange={onChange}
+                onExport={onExport}
+              />
             )}
             {!!result?.missing.length && (
               <div className="missing-variables">
@@ -169,118 +333,65 @@ export function ExpressionRow({
               result?.display !== undefined &&
               !result.error &&
               !result.slider &&
-              !result.fit && (
+              !result.fit &&
+              (result.kind === "list" && brailleCode === "none" ? (
+                <ListResult result={result} />
+              ) : (
                 <div
                   className="expression-result"
                   aria-label={`Result ${result.display}`}
                 >
-                  <span>
-                    {result.kind === "list"
-                      ? result.display
-                      : `= ${result.display}`}
+                  {brailleCode === "none" && result.kind !== "list" && (
+                    <span className="result-equals">
+                      <MathText latex="=" />
+                    </span>
+                  )}
+                  <span className="result-value">
+                    {brailleCode !== "none" ? (
+                      <BrailleText
+                        latex={`${result.kind === "list" ? "" : "="}${result.display}`}
+                        code={brailleCode}
+                      />
+                    ) : result.kind === "list" ? (
+                      result.display
+                    ) : (
+                      <MathText latex={resultLatex(result.display)} />
+                    )}
                   </span>
                 </div>
-              )}
+              ))}
             {result?.slider && (
-              <div className="slider-area">
-                <div className="slider-track">
-                  <button
-                    onClick={() => setSliderSettings(!sliderSettings)}
-                    aria-label="Slider minimum"
-                  >
-                    {item.sliderMin ?? -10}
-                  </button>
-                  <input
-                    aria-label={`Slider ${result.slider}`}
-                    type="range"
-                    min={item.sliderMin ?? -10}
-                    max={item.sliderMax ?? 10}
-                    step={item.sliderStep ?? 0.01}
-                    value={result.value ?? 0}
-                    onChange={(e) =>
-                      onChange({
-                        ...item,
-                        latex: `${result.slider}=${e.target.value}`,
-                      })
-                    }
-                  />
-                  <button
-                    onClick={() => setSliderSettings(!sliderSettings)}
-                    aria-label="Slider maximum"
-                  >
-                    {item.sliderMax ?? 10}
-                  </button>
-                </div>
-                {sliderSettings && (
-                  <div className="slider-bounds">
-                    {(["sliderMin", "sliderMax", "sliderStep"] as const).map(
-                      (key, i) => (
-                        <label key={key}>
-                          {["min", "max", "step"][i]}
-                          <input
-                            type="number"
-                            aria-label={`Slider ${["minimum", "maximum", "step"][i]}`}
-                            value={item[key] ?? [-10, 10, 0.01][i]}
-                            onChange={(e) => {
-                              const n = Number(e.target.value);
-                              const next = { ...item, [key]: n };
-                              if (
-                                Number.isFinite(n) &&
-                                (next.sliderMin ?? -10) <
-                                  (next.sliderMax ?? 10) &&
-                                (next.sliderStep ?? 0.01) > 0
-                              )
-                                onChange(next);
-                            }}
-                          />
-                        </label>
-                      ),
-                    )}
-                  </div>
-                )}
-              </div>
+              <Slider item={item} result={result} onChange={onChange} />
             )}
             {result?.fit && (
-              <div className="regression-result">
-                <div className="regression-section">
-                  <span>STATISTICS</span>
-                  <MathText
-                    latex={`R^2=${Number(result.fit.rSquared.toPrecision(7))}`}
-                  />
-                </div>
-                <div className="regression-section">
-                  <span>PARAMETERS</span>
-                  {Object.entries(result.fit.parameters).map(
-                    ([name, value]) => (
-                      <MathText
-                        key={name}
-                        latex={`${name}=${Number(value.toPrecision(7))}`}
-                      />
-                    ),
-                  )}
-                </div>
-                {result.fit.logModeAvailable && (
-                  <label className="log-mode">
-                    <input
-                      type="checkbox"
-                      checked={item.logMode ?? result.fit.logMode}
-                      onChange={(e) =>
-                        onChange({ ...item, logMode: e.target.checked })
-                      }
-                    />{" "}
-                    Log Mode
-                  </label>
-                )}
-              </div>
+              <RegressionResult
+                item={item}
+                result={result}
+                onChange={onChange}
+                onExport={onExport}
+              />
             )}
           </>
         ) : (
-          <TableEditor
-            item={item}
-            onChange={onChange}
-            onFocus={onSelect}
-            register={register}
-          />
+          <>
+            <TableEditor
+              columnResults={columnResults}
+              computed={computed}
+              customColors={customColors}
+              item={item}
+              onChange={onChange}
+              onFocus={onSelect}
+              register={register}
+            />
+            {item.regression && (
+              <TableRegression
+                item={item}
+                result={fitResult}
+                onChange={onChange}
+                onExport={onExport}
+              />
+            )}
+          </>
         )}
       </div>
       <button
@@ -313,68 +424,14 @@ export function ExpressionRow({
           </button>
         </div>
       )}
-      {styleOpen && (
-        <div
-          className="style-popover popover"
-          role="dialog"
-          aria-label="Expression style"
-        >
-          <div className="color-palette">
-            {COLORS.map((color) => (
-              <button
-                key={color}
-                aria-label={`Color ${color}`}
-                className={item.color === color ? "selected" : ""}
-                style={{ background: color }}
-                onClick={() => onChange({ ...item, color })}
-              />
-            ))}
-          </div>
-          {item.type === "expression" && (
-            <>
-              <label>
-                Line width{" "}
-                <input
-                  type="range"
-                  min="1"
-                  max="8"
-                  step=".5"
-                  value={item.lineWidth ?? 3}
-                  onChange={(e) =>
-                    onChange({ ...item, lineWidth: Number(e.target.value) })
-                  }
-                />
-              </label>
-              <label>
-                Opacity{" "}
-                <input
-                  type="range"
-                  min="0.1"
-                  max="1"
-                  step=".1"
-                  value={item.opacity ?? 1}
-                  onChange={(e) =>
-                    onChange({ ...item, opacity: Number(e.target.value) })
-                  }
-                />
-              </label>
-              <div className="line-styles">
-                {(["solid", "dashed", "dotted"] as const).map((style) => (
-                  <button
-                    key={style}
-                    className={item.lineStyle === style ? "selected" : ""}
-                    onClick={() => onChange({ ...item, lineStyle: style })}
-                  >
-                    {style}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-          <button className="style-done" onClick={() => setStyleOpen(false)}>
-            Done
-          </button>
-        </div>
+      {styleOpen && item.type === "expression" && (
+        <ExpressionStyle
+          item={item}
+          result={result}
+          onChange={onChange}
+          onClose={() => setStyleOpen(false)}
+          customColors={customColors}
+        />
       )}
     </div>
   );
@@ -382,99 +439,311 @@ export function ExpressionRow({
 
 function TableEditor({
   item,
+  columnResults,
+  computed,
+  customColors,
   onChange,
   onFocus,
   register,
 }: {
   item: Table;
+  columnResults: (RowResult | undefined)[];
+  computed: boolean[];
+  customColors: { name: string; colors: string[] }[];
   onChange: (item: Table) => void;
   onFocus: () => void;
   register: (id: string, api: MathAPI | null) => void;
 }) {
   const root = useRef<HTMLDivElement>(null);
+  const [columnMenu, setColumnMenu] = useState<number | null>(null);
+  const [anchor, setAnchor] = useState({ left: 94, top: 60 });
+  const hold = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wasHeld = useRef(false);
+  useEffect(
+    () => () => {
+      if (hold.current) clearTimeout(hold.current);
+    },
+    [],
+  );
+  function openColumn(c: number, element: HTMLElement) {
+    const rect = element.getBoundingClientRect(),
+      parent = root.current!.parentElement!.getBoundingClientRect();
+    setAnchor({
+      left: Math.max(
+        0,
+        Math.min(parent.width - 225, rect.left - parent.left - 4),
+      ),
+      top: rect.bottom - parent.top + 8,
+    });
+    setColumnMenu(c);
+  }
+  function addColumn() {
+    if (item.headers.length >= 20) return;
+    const suffix = /_\{?(\d+)/.exec(item.headers[0])?.[1] ?? "1";
+    const existing = new Set(item.headers);
+    let n = Number(suffix) + 1;
+    while (existing.has(`y_${n}`)) n++;
+    onChange({
+      ...item,
+      headers: [...item.headers, `y_${n}`],
+      values: item.values.map((v) => [...v, ""]),
+    });
+  }
+  const displayRows = Array.from(
+    {
+      length: Math.min(
+        2000,
+        Math.max(
+          item.values.length,
+          ...columnResults.map((r) => (r?.listValues?.length ?? 0) + 1),
+        ),
+      ),
+    },
+    (_, r) => item.headers.map((_, c) => item.values[r]?.[c] ?? ""),
+  );
   const setCell = (row: number, col: number, value: string) => {
     const values = item.values.map((v) => [...v]);
-    while (values.length <= row) values.push(["", ""]);
+    while (values.length <= row)
+      values.push(Array(item.headers.length).fill(""));
     values[row][col] = value;
-    if (values[values.length - 1].some(Boolean)) values.push(["", ""]);
+    if (values[values.length - 1].some(Boolean))
+      values.push(Array(item.headers.length).fill(""));
     onChange({ ...item, values: values.slice(0, 2000) });
   };
   return (
-    <div
-      className="table-editor"
-      ref={root}
-      onPasteCapture={(e) => {
-        const text = e.clipboardData.getData("text/plain");
-        if (!text.includes("\t") && !text.includes("\n")) return;
-        e.preventDefault();
-        e.stopPropagation();
-        const rows = text
-          .trim()
-          .split(/\r?\n/)
-          .map((line) => line.split(/\t|,/).slice(0, 2));
-        if (
-          rows.length <= 2000 &&
-          rows.every((r) => r.length === 2 && r.every((c) => c.length < 512))
-        )
-          onChange({ ...item, values: [...rows, ["", ""]] });
-      }}
-    >
-      <div className="table-header">
-        {item.headers.map((header, c) => (
-          <div key={c} className="table-cell">
-            {c === 1 && (
-              <button
-                className="table-color"
-                style={{ background: item.color }}
-                aria-label="Toggle table points"
-                onClick={() => onChange({ ...item, hidden: !item.hidden })}
-              >
-                ⠿
-              </button>
-            )}
-            <MathField
-              latex={header}
-              label={`Column ${c + 1} name`}
-              onChange={(value) =>
-                onChange({
-                  ...item,
-                  headers: item.headers.map((h, i) => (i === c ? value : h)),
-                })
-              }
-              onFocus={onFocus}
-            />
-          </div>
-        ))}
-        <div className="table-ghost" />
-      </div>
-      {item.values.map((row, r) => (
-        <div className="table-data-row" key={r}>
-          {[0, 1].map((c) => (
-            <div className="table-cell" key={c}>
+    <>
+      <div
+        className="table-editor"
+        ref={root}
+        onPasteCapture={(e) => {
+          const text = e.clipboardData.getData("text/plain");
+          if (!text.includes("\t") && !text.includes("\n")) return;
+          e.preventDefault();
+          e.stopPropagation();
+          const rows = text
+            .trim()
+            .split(/\r?\n/)
+            .map((line) => line.split(/\t|,/).slice(0, 20));
+          if (
+            rows.length <= 2000 &&
+            rows.every((r) => r.length >= 2 && r.every((c) => c.length < 512))
+          ) {
+            const count = Math.max(...rows.map((r) => r.length)),
+              headers = [...item.headers.slice(0, count)];
+            while (headers.length < count) headers.push(`y_${headers.length}`);
+            onChange({
+              ...item,
+              headers,
+              values: [
+                ...rows.map((r) =>
+                  Array.from({ length: count }, (_, i) => r[i] ?? ""),
+                ),
+                Array(count).fill(""),
+              ],
+            });
+          }
+        }}
+      >
+        <div className="table-header">
+          {item.headers.map((header, c) => (
+            <div
+              key={c}
+              className={`table-cell ${computed[c] ? "computed-column" : ""}`}
+            >
+              {c >= 1 && (
+                <button
+                  className="table-color"
+                  style={{
+                    background:
+                      item.columnColors?.[c] ??
+                      (c === 1 ? item.color : COLORS[c % COLORS.length]),
+                    opacity: item.columnHidden?.[c]?.valueOf() ? 0.35 : 1,
+                  }}
+                  aria-label={
+                    c === 1
+                      ? "Toggle table points"
+                      : `Toggle column ${c + 1} points`
+                  }
+                  onClick={() => {
+                    if (wasHeld.current) {
+                      wasHeld.current = false;
+                      return;
+                    }
+                    const hidden = [...(item.columnHidden ?? [])];
+                    hidden[c] = !hidden[c];
+                    onChange({ ...item, columnHidden: hidden });
+                  }}
+                  onPointerDown={(e) => {
+                    if (e.button !== 0) return;
+                    wasHeld.current = false;
+                    const element = e.currentTarget;
+                    hold.current = setTimeout(() => {
+                      wasHeld.current = true;
+                      openColumn(c, element);
+                    }, 600);
+                  }}
+                  onPointerUp={() => {
+                    if (hold.current) clearTimeout(hold.current);
+                  }}
+                  onPointerCancel={() => {
+                    if (hold.current) clearTimeout(hold.current);
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    if (columnMenu === c) setColumnMenu(null);
+                    else openColumn(c, e.currentTarget);
+                  }}
+                >
+                  <svg
+                    viewBox="0 0 28 28"
+                    width="28"
+                    height="28"
+                    aria-hidden="true"
+                  >
+                    <g fill="white">
+                      <circle cx="9" cy="8" r="2.5" />
+                      <circle cx="20" cy="8" r="2.5" />
+                      <circle cx="15" cy="15" r="2.5" />
+                      <circle cx="8" cy="21" r="2.5" />
+                      <circle cx="21" cy="21" r="2.5" />
+                    </g>
+                  </svg>
+                </button>
+              )}
               <MathField
-                latex={row[c] ?? ""}
-                label={`Table row ${r + 1} column ${c + 1}`}
-                onChange={(value) => setCell(r, c, value)}
+                latex={header}
+                label={`Column ${c + 1} name`}
+                onChange={(value) =>
+                  onChange({
+                    ...item,
+                    headers: item.headers.map((h, i) => (i === c ? value : h)),
+                  })
+                }
                 onFocus={onFocus}
-                register={(api) => register(`${item.id}:${r}:${c}`, api)}
-                onEnter={() => {
-                  const inputs =
-                    root.current!.querySelectorAll<HTMLTextAreaElement>(
-                      ".table-data-row textarea",
-                    );
-                  inputs[(r + 1) * 2 + c]?.focus();
-                }}
+                register={(api) => register(`${item.id}:header:${c}`, api)}
               />
             </div>
           ))}
-          <div className="table-ghost" />
+          <button
+            className="table-ghost add-table-column"
+            aria-label="Add table column"
+            onClick={addColumn}
+          >
+            +
+          </button>
         </div>
-      ))}
-      <div className="table-fade-row">
-        <span />
-        <span />
-        <span />
+        {displayRows.map((row, r) => (
+          <div className="table-data-row" key={r}>
+            {item.headers.map((_, c) => (
+              <div
+                className={`table-cell ${computed[c] ? "computed-cell computed-column" : ""}`}
+                key={c}
+              >
+                {computed[c] ? (
+                  <span
+                    className="computed-table-value"
+                    aria-label={`Table row ${r + 1} column ${c + 1}: ${columnResults[c]?.listValues?.[r] ?? ""}`}
+                  >
+                    <MathText
+                      latex={resultLatex(
+                        columnResults[c]?.listValues?.[r] ?? "",
+                      )}
+                    />
+                  </span>
+                ) : (
+                  <MathField
+                    latex={row[c] ?? ""}
+                    label={`Table row ${r + 1} column ${c + 1}`}
+                    onChange={(value) => setCell(r, c, value)}
+                    onFocus={onFocus}
+                    register={(api) => register(`${item.id}:${r}:${c}`, api)}
+                    onEnter={() => {
+                      const inputs =
+                        root.current!.querySelectorAll<HTMLTextAreaElement>(
+                          ".table-data-row textarea",
+                        );
+                      root.current
+                        ?.querySelector<HTMLTextAreaElement>(
+                          `textarea[aria-label="Table row ${r + 2} column ${c + 1}"]`,
+                        )
+                        ?.focus();
+                    }}
+                  />
+                )}
+              </div>
+            ))}
+            <div className="table-ghost" />
+          </div>
+        ))}
+        <div className="table-fade-row">
+          <span />
+          <span />
+          <span />
+        </div>
       </div>
-    </div>
+      {columnMenu !== null && (
+        <div className="table-style-anchor" style={anchor}>
+          <ExpressionStyle
+            table
+            customColors={customColors}
+            item={{
+              id: item.id,
+              type: "expression",
+              latex: "",
+              hidden: false,
+              color:
+                item.columnColors?.[columnMenu] ??
+                (columnMenu === 1
+                  ? item.color
+                  : COLORS[columnMenu % COLORS.length]),
+              colorLatex: item.columnColorLatex?.[columnMenu],
+              plotStyle: item.columnStyles?.[columnMenu],
+            }}
+            result={
+              {
+                ...columnResults[columnMenu],
+                kind: "list",
+                geometry: [
+                  { kind: "points", start: 0, count: 0, dashed: false },
+                ],
+              } as RowResult
+            }
+            onClose={() => setColumnMenu(null)}
+            onChange={(changed) => {
+              const colors = [...(item.columnColors ?? [])],
+                styles = [...(item.columnStyles ?? [])],
+                colorLatex = [...(item.columnColorLatex ?? [])];
+              colors[columnMenu] = changed.color;
+              styles[columnMenu] = changed.plotStyle ?? {};
+              colorLatex[columnMenu] = changed.colorLatex ?? "";
+              onChange({
+                ...item,
+                columnColors: colors,
+                columnStyles: styles,
+                columnColorLatex: colorLatex,
+              });
+            }}
+            onAddRegression={
+              item.regression
+                ? undefined
+                : () => {
+                    onChange({
+                      ...item,
+                      regression: {
+                        model: "linear",
+                        xColumn: 0,
+                        yColumn: columnMenu,
+                        color: "#6042a6",
+                        hidden: false,
+                        residualVariable: "e_{1}",
+                      },
+                    });
+                    setColumnMenu(null);
+                  }
+            }
+          />
+        </div>
+      )}
+    </>
   );
 }

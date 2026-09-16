@@ -156,9 +156,9 @@ test("table paste and a linear regression recover known parameters", async ({
     });
     window.UandupCalculator.setState(s);
   });
-  await expect(page.locator(".regression-result")).toBeVisible();
-  await expect(page.locator(".regression-result")).toContainText("m=2");
-  await expect(page.locator(".regression-result")).toContainText("b=1");
+  await expect(page.locator(".custom-regression-result")).toBeVisible();
+  await expect(page.locator(".custom-regression-result")).toContainText("m=2");
+  await expect(page.locator(".custom-regression-result")).toContainText("b=1");
 });
 test("table cell retains virtual keypad focus", async ({ page }) => {
   await page.getByRole("button", { name: "Add Item", exact: true }).click();
@@ -215,12 +215,11 @@ test("settings, errors, and clearing can be operated without reloading", async (
       () => window.UandupCalculator.getState().graph.settings.grid,
     ),
   ).toBe(false);
-  await page
-    .getByRole("textbox", { name: "X axis minimum", exact: true })
-    .fill("10");
-  await page
-    .getByRole("textbox", { name: "X axis minimum", exact: true })
-    .press("Enter");
+  const minimum = page.getByRole("textbox", { name: /^X axis minimum:/ });
+  await minimum.focus();
+  await page.keyboard.press("ControlOrMeta+A");
+  await page.keyboard.type("10");
+  await minimum.press("Enter");
   await expect(page.getByRole("alert")).toContainText("minimum");
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Edit Expression List" }).click();
@@ -279,8 +278,8 @@ test("exponential regression log mode can be switched", async ({ page }) => {
   ]);
   const toggle = page.getByLabel("Log Mode", { exact: true });
   await expect(toggle).toBeChecked();
-  await expect(page.locator(".regression-result")).toContainText("a=2");
+  await expect(page.locator(".custom-regression-result")).toContainText("a=2");
   await toggle.uncheck();
   await expect(toggle).not.toBeChecked();
-  await expect(page.locator(".regression-result")).toContainText("b=2");
+  await expect(page.locator(".custom-regression-result")).toContainText("b=2");
 });

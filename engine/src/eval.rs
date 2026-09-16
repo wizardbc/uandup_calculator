@@ -4,16 +4,24 @@ use std::{cell::Cell, collections::HashMap};
 #[derive(Clone, Debug)]
 pub enum Value {
     Scalar(f64),
+    Complex(num_complex::Complex64),
     List(Vec<Value>),
     Point(f64, f64),
     Distribution(String, Vec<f64>),
+    Summary(crate::inference::Summary),
+    Inference(Box<crate::inference::Test>),
+    Interval(f64, f64),
+    Statistics(crate::statistics::Statistics),
+    Visual(crate::visualizations::Visual),
+    Color(String),
+    Tone(f64, f64),
 }
 impl Value {
     pub fn scalar(&self) -> Result<f64, String> {
-        if let Self::Scalar(x) = self {
-            Ok(*x)
-        } else {
-            Err("A number is needed here.".into())
+        match self {
+            Self::Scalar(x) => Ok(*x),
+            Self::Complex(z) if z.im == 0. => Ok(z.re),
+            _ => Err("A real number is needed here.".into()),
         }
     }
     pub fn numbers(&self) -> Result<Vec<f64>, String> {
@@ -26,6 +34,7 @@ impl Value {
     pub fn display(&self) -> String {
         match self {
             Self::Scalar(x) => number(*x),
+            Self::Complex(z) => crate::complex::display(*z),
             Self::Point(x, y) => format!("({}, {})", number(*x), number(*y)),
             Self::List(xs) => format!(
                 "[{}{}]",
@@ -37,6 +46,18 @@ impl Value {
                 if xs.len() > 20 { ", …" } else { "" }
             ),
             Self::Distribution(name, _) => name.replace("dist", " distribution"),
+            Self::Summary(s) => format!(
+                "n = {}, mean = {}, stdev = {}",
+                number(s.count),
+                number(s.mean),
+                number(s.stdev)
+            ),
+            Self::Inference(t) => t.kind.clone(),
+            Self::Interval(lo, hi) => format!("[{}, {}]", number(*lo), number(*hi)),
+            Self::Statistics(_) => "Statistics".into(),
+            Self::Visual(v) => v.kind.clone(),
+            Self::Color(color) => color.clone(),
+            Self::Tone(_, _) => "Tone".into(),
         }
     }
 }
@@ -47,11 +68,23 @@ pub fn number(x: f64) -> String {
     if x.is_infinite() {
         return if x > 0. { "∞" } else { "−∞" }.into();
     }
-    let x = if x == 0. { 0. } else { x };
-    if x != 0. && (x.abs() >= 1e12 || x.abs() < 1e-7) {
-        format!("{x:.9e}")
+    if x == 0. {
+        return "0".into();
+    }
+    if x.abs() >= 1e10 || x.abs() < 1e-6 {
+        let raw = format!("{x:.10e}");
+        let (mantissa, exponent) = raw.split_once('e').unwrap();
+        format!(
+            "{}e{}",
+            mantissa.trim_end_matches('0').trim_end_matches('.'),
+            exponent
+        )
     } else {
-        let s = format!("{x:.10}");
+        let decimals = (11. - x.abs().log10().floor()).max(0.) as usize;
+        let s = format!("{x:.decimals$}");
+        if decimals == 0 {
+            return s;
+        }
         s.trim_end_matches('0').trim_end_matches('.').to_string()
     }
 }
@@ -61,11 +94,15 @@ pub enum Definition {
     Variable(Expr),
     Function(Vec<String>, Expr),
 }
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Environment {
     pub definitions: HashMap<String, Definition>,
     pub values: HashMap<String, Value>,
+    pub regression_tests: HashMap<String, crate::inference::Test>,
     pub degrees: bool,
+    pub complex: bool,
+    pub random_seed: u64,
+    pub random_context: Cell<u64>,
     pub work: Cell<u64>,
 }
 impl Environment {
@@ -94,17 +131,32 @@ impl Environment {
                     return Ok(v.clone());
                 }
                 match n.as_str() {
+                    "i" if self.complex => return Ok(Value::Complex(num_complex::Complex64::i())),
                     "pi" => return Ok(Value::Scalar(std::f64::consts::PI)),
                     "e" => return Ok(Value::Scalar(std::f64::consts::E)),
                     "infinity" => return Ok(Value::Scalar(f64::INFINITY)),
                     _ => (),
                 }
                 if let Some(Definition::Variable(expr)) = self.definitions.get(n) {
-                    return ev(expr);
+                    let previous = self.random_context.replace(crate::random::hash(n));
+                    let result = ev(expr);
+                    self.random_context.set(previous);
+                    return result;
                 }
                 Err(format!("Define {n} to use it here."))
             }
-            Expr::Unary(op, x) => unary(ev(x)?, &|x| if *op == '-' { -x } else { x }),
+            Expr::Unary(op, x) => {
+                let v = ev(x)?;
+                if self.complex {
+                    crate::complex::operation(
+                        "*",
+                        Value::Scalar(if *op == '-' { -1. } else { 1. }),
+                        v,
+                    )
+                } else {
+                    unary(v, &|x| if *op == '-' { -x } else { x })
+                }
+            }
             Expr::Binary(op, a, b) => {
                 if matches!(op.as_str(), "<" | ">" | "<=" | ">=") {
                     if let Expr::Binary(prev, left, middle) = a.as_ref() {
@@ -115,7 +167,11 @@ impl Environment {
                         }
                     }
                 }
-                binary(op, ev(a)?, ev(b)?)
+                if self.complex {
+                    crate::complex::operation(op, ev(a)?, ev(b)?)
+                } else {
+                    binary(op, ev(a)?, ev(b)?)
+                }
             }
             Expr::List(xs) => Ok(Value::List(xs.iter().map(ev).collect::<Result<_, _>>()?)),
             Expr::Point(a, b) => {
@@ -163,6 +219,23 @@ impl Environment {
                 let value = ev(list)?;
                 if let Value::List(xs) = value {
                     let idx = ev(index)?;
+                    if matches!(index.as_ref(),Expr::Binary(op,_,_) if ["<",">","<=",">=","=","!="].contains(&op.as_str()))
+                    {
+                        if let Value::List(mask) = &idx {
+                            if mask.len() != xs.len() {
+                                return Err("The filter must match the list length.".into());
+                            }
+                            return Ok(Value::List(
+                                xs.into_iter()
+                                    .zip(mask)
+                                    .filter_map(|(x, m)| match m.scalar() {
+                                        Ok(v) if v != 0. => Some(x),
+                                        _ => None,
+                                    })
+                                    .collect(),
+                            ));
+                        }
+                    }
                     let one = |n: f64| {
                         if n.is_finite() && n >= 1. && n <= xs.len() as f64 && n.fract() == 0. {
                             xs[n as usize - 1].clone()
@@ -204,6 +277,70 @@ impl Environment {
                 }
             }
             Expr::Call(name, args) => {
+                if name == "ttest" && args.len() == 1 {
+                    if let Expr::Var(parameter) = &args[0] {
+                        if let Some(test) = self.regression_tests.get(parameter) {
+                            return Ok(Value::Inference(Box::new(test.clone())));
+                        }
+                    }
+                }
+                if name == "__with" {
+                    let mut local = vars.clone();
+                    for pair in args[1..].chunks_exact(2) {
+                        let Expr::Var(n) = &pair[0] else {
+                            return Err("Use a variable in the substitution.".into());
+                        };
+                        if args[1..]
+                            .chunks_exact(2)
+                            .filter(|p| p[0] == pair[0])
+                            .count()
+                            > 1
+                        {
+                            return Err(
+                                "A substitution cannot define the same variable twice.".into()
+                            );
+                        }
+                        local.insert(n.clone(), ev(&pair[1])?);
+                    }
+                    return self.at(&args[0], &local, depth + 1);
+                }
+                if name == "__for" {
+                    fn expand(
+                        env: &Environment,
+                        body: &Expr,
+                        bindings: &[Expr],
+                        vars: &HashMap<String, Value>,
+                        depth: usize,
+                        out: &mut Vec<Value>,
+                    ) -> Result<(), String> {
+                        if out.len() > 10000 {
+                            return Err("A list can have at most 10,000 elements.".into());
+                        }
+                        if bindings.is_empty() {
+                            let v = env.at(body, vars, depth + 1)?;
+                            if matches!(v, Value::List(_)) {
+                                return Err("A list cannot contain another list.".into());
+                            }
+                            out.push(v);
+                            return Ok(());
+                        }
+                        let Expr::Var(n) = &bindings[0] else {
+                            return Err("Use a variable in the list comprehension.".into());
+                        };
+                        let Value::List(values) = env.at(&bindings[1], vars, depth + 1)? else {
+                            return Err("Use a list after the for variable.".into());
+                        };
+                        let mut local = vars.clone();
+                        for v in values {
+                            local.insert(n.clone(), v);
+                            expand(env, body, &bindings[2..], &local, depth + 1, out)?;
+                        }
+                        Ok(())
+                    }
+                    let mut out = vec![];
+                    expand(self, &args[0], &args[1..], vars, depth, &mut out)?;
+                    return Ok(Value::List(out));
+                }
                 if let Some(Definition::Function(params, expr)) = self.definitions.get(name) {
                     if params.len() != args.len() {
                         return Err(format!("{name} needs {} argument(s).", params.len()));
@@ -321,6 +458,67 @@ impl Environment {
         Ok(Value::Scalar(answer))
     }
     fn function(&self, name: &str, args: &[Value]) -> Result<Value, String> {
+        if let Some(result) =
+            crate::random::function(name, args, self.random_seed ^ self.random_context.get())
+        {
+            return result;
+        }
+        if name == "tone" {
+            if args.is_empty() || args.len() > 2 {
+                return Err("Use tone(frequency, optional gain).".into());
+            }
+            let frequencies = args[0].numbers()?;
+            let gains = if args.len() == 2 {
+                args[1].numbers()?
+            } else {
+                vec![1.]
+            };
+            let mut voices = vec![];
+            for (i, frequency) in frequencies.into_iter().enumerate() {
+                let gain = if gains.len() == 1 {
+                    gains[0]
+                } else {
+                    *gains
+                        .get(i)
+                        .ok_or("Use matching frequency and gain lists.")?
+                };
+                if !frequency.is_finite()
+                    || !(20. ..=20000.).contains(&frequency)
+                    || !gain.is_finite()
+                    || gain < 0.
+                {
+                    return Err(
+                        "Use a frequency from 20 to 20000 Hz and a nonnegative gain.".into(),
+                    );
+                }
+                voices.push(Value::Tone(frequency, gain.min(10.).min(660. / frequency)));
+            }
+            return Ok(if matches!(&args[0], Value::List(_)) {
+                Value::List(voices)
+            } else {
+                voices.pop().ok_or("Enter a frequency.")?
+            });
+        }
+        if let Some(result) = crate::colors::function(name, args) {
+            return result;
+        }
+        if let Some(result) = crate::visualizations::function(name, args) {
+            return result;
+        }
+        if let Some(result) = crate::distributions::function(name, args) {
+            return result;
+        }
+        if let Some(result) = crate::inference::function(name, args) {
+            return result;
+        }
+        if self.complex {
+            if let Some(result) = crate::complex::function(name, args, self.degrees) {
+                return result;
+            }
+        }
+        if let Some(result) = crate::statistics::function(name, args) {
+            return result;
+        }
         if name.ends_with("dist") {
             let params = args
                 .iter()

@@ -15,8 +15,18 @@ pub struct Viewport {
     pub y_max: f64,
     pub width: f64,
     pub height: f64,
+    #[serde(default)]
+    pub x_log: bool,
+    #[serde(default)]
+    pub y_log: bool,
 }
 impl Viewport {
+    pub fn x_at(&self, t: f64) -> f64 {
+        interpolate(self.x_min, self.x_max, t, self.x_log)
+    }
+    pub fn y_at(&self, t: f64) -> f64 {
+        interpolate(self.y_min, self.y_max, t, self.y_log)
+    }
     pub fn valid(&self) -> bool {
         [
             self.x_min,
@@ -32,7 +42,21 @@ impl Viewport {
             && self.y_max > self.y_min
             && self.width > 0.
             && self.height > 0.
+            && (!self.x_log || self.x_min > 0.)
+            && (!self.y_log || self.y_min > 0.)
     }
+}
+fn project(x: f64, log: bool) -> f64 {
+    if log { x.log10() } else { x }
+}
+fn unproject(x: f64, log: bool) -> f64 {
+    if log { 10f64.powf(x) } else { x }
+}
+fn interpolate(a: f64, b: f64, t: f64, log: bool) -> f64 {
+    unproject(
+        project(a, log) + (project(b, log) - project(a, log)) * t,
+        log,
+    )
 }
 #[derive(Serialize, Clone)]
 pub struct Geometry {
@@ -74,14 +98,46 @@ pub fn explicit(
     vertical: bool,
     geometry: &mut Vec<f64>,
 ) -> (Vec<Geometry>, Vec<Interest>) {
+    let probe = HashMap::from([
+        ("x".into(), Value::Scalar(0.371)),
+        ("y".into(), Value::Scalar(0.529)),
+    ]);
+    if let Ok(Value::List(values)) = env.eval(expr, &probe) {
+        let mut lines = Vec::new();
+        let mut points = Vec::new();
+        for i in 0..values.len() {
+            if env.work.get() > 25_000_000 {
+                break;
+            }
+            let member = Expr::Index(Box::new(expr.clone()), Box::new(Expr::Num((i + 1) as f64)));
+            let (g, p) = explicit(env, &member, view, vertical, geometry);
+            lines.extend(g);
+            points.extend(p);
+        }
+        return (lines, points);
+    }
+    let input_log = if vertical { view.y_log } else { view.x_log };
+    let output_log = if vertical { view.x_log } else { view.y_log };
     let (lo, hi, pixels, other) = if vertical {
         (view.y_min, view.y_max, view.height, view.x_max - view.x_min)
     } else {
         (view.x_min, view.x_max, view.width, view.y_max - view.y_min)
     };
+    let lo = project(lo, input_log);
+    let hi = project(hi, input_log);
+    let other = if output_log {
+        if vertical {
+            (view.x_max / view.x_min).log10()
+        } else {
+            (view.y_max / view.y_min).log10()
+        }
+    } else {
+        other
+    };
     let program = Program::compile(env, expr);
-    let f = |x: f64| {
-        if let Some(p) = &program {
+    let f = |u: f64| {
+        let x = unproject(u, input_log);
+        let y = if let Some(p) = &program {
             if vertical {
                 p.eval(0., x, 0.)
             } else {
@@ -91,13 +147,18 @@ pub fn explicit(
             scalar(env, expr, 0., x)
         } else {
             scalar(env, expr, x, 0.)
-        }
+        };
+        project(y, output_log)
     };
     let n = (pixels / 2.).ceil().clamp(64., 2048.) as usize;
     let mut data = Vec::new();
     let mut interests = Vec::new();
     let mut prev_slope = f64::NAN;
-    let convert = |x, y| if vertical { [y, x] } else { [x, y] };
+    let convert = |x, y| {
+        let x = unproject(x, input_log);
+        let y = unproject(y, output_log);
+        if vertical { [y, x] } else { [x, y] }
+    };
     fn refine(
         f: &impl Fn(f64) -> f64,
         a: f64,
@@ -137,7 +198,7 @@ pub fn explicit(
             data.extend(convert(x, y));
         }
         if y0.is_finite() && y1.is_finite() {
-            if y0 * y1 <= 0. && (y0 != 0. || y1 != 0.) {
+            if !output_log && y0 * y1 <= 0. && (y0 != 0. || y1 != 0.) {
                 if let Some(x) = root(&f, x0, x1) {
                     let p = convert(x, 0.);
                     interests.push(Interest {
@@ -172,7 +233,7 @@ pub fn explicit(
         x0 = x1;
         y0 = y1;
     }
-    if lo <= 0. && hi >= 0. {
+    if !input_log && lo <= 0. && hi >= 0. {
         let y = f(0.);
         if y.is_finite() {
             let p = convert(0., y);
@@ -246,8 +307,6 @@ pub fn implicit(
 ) -> Vec<Geometry> {
     let nx = (view.width / 5.).ceil().clamp(40., 300.) as usize;
     let ny = (view.height / 5.).ceil().clamp(40., 240.) as usize;
-    let dx = (view.x_max - view.x_min) / nx as f64;
-    let dy = (view.y_max - view.y_min) / ny as f64;
     let pa = Program::compile(env, a);
     let pb = Program::compile(env, b);
     let f = |x, y| {
@@ -259,7 +318,10 @@ pub fn implicit(
     let mut values = vec![0.; (nx + 1) * (ny + 1)];
     for j in 0..=ny {
         for i in 0..=nx {
-            values[j * (nx + 1) + i] = f(view.x_min + i as f64 * dx, view.y_min + j as f64 * dy);
+            values[j * (nx + 1) + i] = f(
+                view.x_at(i as f64 / nx as f64),
+                view.y_at(j as f64 / ny as f64),
+            );
         }
     }
     let mut lines = Vec::new();
@@ -331,8 +393,10 @@ pub fn implicit(
     };
     for j in 0..ny {
         for i in 0..nx {
-            let x = view.x_min + i as f64 * dx;
-            let y = view.y_min + j as f64 * dy;
+            let x = view.x_at(i as f64 / nx as f64);
+            let y = view.y_at(j as f64 / ny as f64);
+            let dx = view.x_at((i + 1) as f64 / nx as f64) - x;
+            let dy = view.y_at((j + 1) as f64 / ny as f64) - y;
             let corners = [
                 (x, y, values[j * (nx + 1) + i]),
                 (x + dx, y, values[j * (nx + 1) + i + 1]),
@@ -406,14 +470,54 @@ pub fn parametric(
     x: &Expr,
     y: &Expr,
     polar: bool,
+    bounds: (f64, f64),
     view: Viewport,
     geometry: &mut Vec<f64>,
 ) -> Vec<Geometry> {
     let mut vars = HashMap::new();
+    vars.insert(
+        if polar { "theta" } else { "t" }.into(),
+        Value::Scalar(bounds.0 + 0.371 * (bounds.1 - bounds.0)),
+    );
+    let a = env.eval(x, &vars).ok();
+    let b = env.eval(y, &vars).ok();
+    let length = |v: &Option<Value>| {
+        if let Some(Value::List(xs)) = v {
+            Some(xs.len())
+        } else {
+            None
+        }
+    };
+    let (nx, ny) = (length(&a), length(&b));
+    if nx.is_some() || ny.is_some() {
+        let count = nx.unwrap_or(usize::MAX).min(ny.unwrap_or(usize::MAX));
+        let mut result = vec![];
+        for i in 0..count {
+            if env.work.get() > 25_000_000 {
+                break;
+            }
+            let member = |e: &Expr, n: Option<usize>| {
+                if n.is_some() {
+                    Expr::Index(Box::new(e.clone()), Box::new(Expr::Num((i + 1) as f64)))
+                } else {
+                    e.clone()
+                }
+            };
+            result.extend(parametric(
+                env,
+                &member(x, nx),
+                &member(y, ny),
+                polar,
+                bounds,
+                view,
+                geometry,
+            ));
+        }
+        return result;
+    }
     let mut data: Vec<f64> = vec![];
-    let max = if polar { 2. * std::f64::consts::PI } else { 1. };
     for i in 0..=1600 {
-        let t = i as f64 / 1600. * max;
+        let t = bounds.0 + i as f64 / 1600. * (bounds.1 - bounds.0);
         vars.insert(if polar { "theta" } else { "t" }.into(), Value::Scalar(t));
         let a = env
             .eval(x, &vars)
@@ -424,7 +528,8 @@ pub fn parametric(
             .and_then(|v| v.scalar())
             .unwrap_or(f64::NAN);
         let (a, b) = if polar {
-            (a * t.cos(), a * t.sin())
+            let angle = if env.degrees { t.to_radians() } else { t };
+            (a * angle.cos(), a * angle.sin())
         } else {
             (a, b)
         };

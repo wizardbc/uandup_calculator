@@ -21,6 +21,7 @@ jobs:
       - run: cargo install wasm-bindgen-cli --version 0.2.128 --locked
       - run: npm run test:engine
       - run: npm run build
+      - run: npm run test:wasm
       - run: npx playwright install --with-deps chromium firefox webkit
       - run: npm test
         env:

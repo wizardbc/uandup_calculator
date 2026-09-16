@@ -12,15 +12,17 @@
     "build:wasm": "node scripts/build-wasm.mjs",
     "build": "npm run build:wasm && node scripts/prepare-licenses.mjs && tsc --noEmit && vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "test:engine": "cargo test --manifest-path engine/Cargo.toml",
+    "test:engine": "cargo test --locked --manifest-path engine/Cargo.toml && cargo test --locked --manifest-path accessibility/Cargo.toml",
     "test": "playwright test",
-    "predev": "node scripts/prepare-licenses.mjs"
+    "predev": "node scripts/prepare-licenses.mjs",
+    "test:wasm": "node --experimental-strip-types --test tests/numerical.test.mjs"
   },
   "dependencies": {
     "@fluent/bundle": "0.19.1",
     "@lukeed/uuid": "2.0.1",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "temml": "0.13.5"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",

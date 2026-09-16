@@ -14,6 +14,9 @@ pub struct Fit {
     pub log_mode: bool,
     pub log_mode_available: bool,
     pub rmse: f64,
+    pub standard_errors: BTreeMap<String, f64>,
+    pub degrees_of_freedom: usize,
+    pub correlation: Option<f64>,
 }
 
 fn solve(mut a: Vec<Vec<f64>>, mut b: Vec<f64>) -> Option<Vec<f64>> {
@@ -48,6 +51,14 @@ fn logarithmic(expr: &Expr) -> bool {
             (op == "^" && !matches!(b.as_ref(), Expr::Num(_))) || logarithmic(a) || logarithmic(b)
         }
         Expr::Call(n, _) => n == "exp",
+        _ => false,
+    }
+}
+fn has_sine(expr: &Expr) -> bool {
+    match expr {
+        Expr::Call(n, args) => n == "sin" || args.iter().any(has_sine),
+        Expr::Binary(_, a, b) => has_sine(a) || has_sine(b),
+        Expr::Unary(_, a) => has_sine(a),
         _ => false,
     }
 }
@@ -99,8 +110,82 @@ pub fn fit(
     };
     let cost = |r: &[f64]| r.iter().map(|x| x * x).sum::<f64>();
     let mut best: Option<(f64, Vec<f64>)> = None;
-    for start in [1., 0.1, 2.] {
-        let mut p = vec![start; params.len()];
+    let mut starts: Vec<Vec<f64>> = [1., 0.1, 2.]
+        .iter()
+        .map(|n| vec![*n; params.len()])
+        .collect();
+    // Estimate sinusoidal frequency before nonlinear refinement. A fixed-frequency
+    // sine/cosine fit is linear and avoids getting trapped in an unrelated period.
+    if has_sine(right) && params.len() == 4 {
+        let positions: Option<Vec<_>> = ['a', 'b', 'c', 'd']
+            .iter()
+            .map(|letter| {
+                params.iter().position(|name| {
+                    name == &letter.to_string() || name.starts_with(&format!("{letter}_"))
+                })
+            })
+            .collect();
+        let xs = right
+            .variables()
+            .iter()
+            .filter_map(|n| env.values.get(n))
+            .find_map(|v| {
+                if let Value::List(_) = v {
+                    v.numbers().ok()
+                } else {
+                    None
+                }
+            });
+        if let (Some(positions), Some(xs)) = (positions, xs) {
+            if xs.len() == observed.len() && xs.iter().all(|n| n.is_finite()) {
+                let min = xs.iter().copied().fold(f64::INFINITY, f64::min);
+                let max = xs.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+                let span = max - min;
+                if span > 0. {
+                    let mut candidates = vec![];
+                    for i in 1..=256 {
+                        let omega =
+                            std::f64::consts::PI * (xs.len() as f64) * (i as f64 / 256.) / span;
+                        let basis: Vec<_> = xs
+                            .iter()
+                            .map(|x| [(omega * x).sin(), (omega * x).cos(), 1.])
+                            .collect();
+                        let mat = (0..3)
+                            .map(|a| {
+                                (0..3)
+                                    .map(|b| basis.iter().map(|r| r[a] * r[b]).sum())
+                                    .collect()
+                            })
+                            .collect();
+                        let rhs = (0..3)
+                            .map(|a| basis.iter().zip(&observed).map(|(r, y)| r[a] * y).sum())
+                            .collect();
+                        if let Some(q) = solve(mat, rhs) {
+                            let score: f64 = basis
+                                .iter()
+                                .zip(&observed)
+                                .map(|(r, y)| (q[0] * r[0] + q[1] * r[1] + q[2] - y).powi(2))
+                                .sum();
+                            let unit = if env.degrees {
+                                180. / std::f64::consts::PI
+                            } else {
+                                1.
+                            };
+                            let mut p = vec![0.; 4];
+                            p[positions[0]] = q[0].hypot(q[1]);
+                            p[positions[1]] = omega * unit;
+                            p[positions[2]] = q[1].atan2(q[0]) * unit;
+                            p[positions[3]] = q[2];
+                            candidates.push((score, p));
+                        }
+                    }
+                    candidates.sort_by(|a, b| a.0.total_cmp(&b.0));
+                    starts.extend(candidates.into_iter().take(4).map(|(_, p)| p));
+                }
+            }
+        }
+    }
+    for mut p in starts {
         let mut r = residual(&p)?;
         let mut score = cost(&r);
         let mut lambda = 1e-3;
@@ -166,6 +251,75 @@ pub fn fit(
     let sum = cost(&residuals);
     let mean = observed.iter().sum::<f64>() / observed.len() as f64;
     let total = observed.iter().map(|x| (x - mean).powi(2)).sum::<f64>();
+    let dof = observed.len().saturating_sub(params.len());
+    let mut standard_errors = BTreeMap::new();
+    if dof > 0 && !log_mode {
+        let jac: Vec<Vec<f64>> = p
+            .iter()
+            .enumerate()
+            .map(|(j, value)| {
+                let h = 1e-5 * (1. + value.abs());
+                let mut shifted = p.clone();
+                shifted[j] += h;
+                predict(&shifted)
+                    .map(|ys| {
+                        ys.iter()
+                            .zip(&predicted)
+                            .map(|(a, b)| (a - b) / h)
+                            .collect()
+                    })
+                    .unwrap_or_default()
+            })
+            .collect();
+        if jac.iter().all(|c| c.len() == observed.len()) {
+            let matrix: Vec<Vec<f64>> = jac
+                .iter()
+                .map(|a| {
+                    jac.iter()
+                        .map(|b| a.iter().zip(b).map(|(x, y)| x * y).sum())
+                        .collect()
+                })
+                .collect();
+            for (j, name) in params.iter().enumerate() {
+                let mut unit = vec![0.; params.len()];
+                unit[j] = 1.;
+                if let Some(column) = solve(matrix.clone(), unit) {
+                    let se = (column[j] * sum / dof as f64).sqrt();
+                    if se.is_finite() {
+                        standard_errors.insert(name.clone(), se);
+                    }
+                }
+            }
+        }
+    }
+    let independent: Vec<_> = right
+        .variables()
+        .into_iter()
+        .filter_map(|n| {
+            env.values.get(&n).and_then(|v| {
+                if matches!(v, Value::List(_)) {
+                    v.numbers().ok()
+                } else {
+                    None
+                }
+            })
+        })
+        .collect();
+    let correlation =
+        if params.len() == 2 && independent.len() == 1 && independent[0].len() == observed.len() {
+            let x = &independent[0];
+            let xm = x.iter().sum::<f64>() / x.len() as f64;
+            let covariance = x
+                .iter()
+                .zip(&observed)
+                .map(|(a, b)| (a - xm) * (b - mean))
+                .sum::<f64>();
+            let variance = x.iter().map(|a| (a - xm).powi(2)).sum::<f64>();
+            let r = covariance / (variance * total).sqrt();
+            if r.is_finite() { Some(r) } else { None }
+        } else {
+            None
+        };
     Ok(Fit {
         parameters: params.into_iter().zip(p).collect(),
         r_squared: if total > 0. {
@@ -179,5 +333,8 @@ pub fn fit(
         log_mode,
         log_mode_available,
         rmse: (sum / observed.len() as f64).sqrt(),
+        standard_errors,
+        degrees_of_freedom: dof,
+        correlation,
     })
 }

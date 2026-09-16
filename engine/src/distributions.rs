@@ -62,7 +62,7 @@ pub fn evaluate(name: &str, p: &[f64], member: &str, x: f64) -> Result<f64, Stri
     }
     let result = match name {
         "normaldist" => {
-            if p.len() != 0 && p.len() != 2 {
+            if p.len() > 2 {
                 return Err(bad());
             }
             continuous!(Normal::new(
@@ -83,16 +83,19 @@ pub fn evaluate(name: &str, p: &[f64], member: &str, x: f64) -> Result<f64, Stri
             continuous!(ChiSquared::new(p[0]))
         }
         "uniformdist" => {
-            if p.len() != 2 {
+            if p.len() > 2 {
                 return Err(bad());
             }
-            continuous!(Uniform::new(p[0], p[1]))
+            continuous!(Uniform::new(
+                p.first().copied().unwrap_or(0.),
+                p.get(1).copied().unwrap_or(1.)
+            ))
         }
         "binomialdist" => {
-            if p.len() != 2 || p[0] < 0. || p[0].fract() != 0. || p[0] > 1e6 {
+            if p.is_empty() || p.len() > 2 || p[0] < 0. || p[0].fract() != 0. || p[0] > 1e6 {
                 return Err(bad());
             }
-            discrete!(Binomial::new(p[1], p[0] as u64))
+            discrete!(Binomial::new(p.get(1).copied().unwrap_or(0.5), p[0] as u64))
         }
         "poissondist" => {
             if p.len() != 1 {
@@ -104,7 +107,74 @@ pub fn evaluate(name: &str, p: &[f64], member: &str, x: f64) -> Result<f64, Stri
             if p.len() != 1 {
                 return Err(bad());
             }
-            discrete!(Geometric::new(p[0]))
+            let d = Geometric::new(p[0]).map_err(|_| bad())?;
+            match member {
+                "pdf" => {
+                    if x < 1. || x.fract() != 0. {
+                        0.
+                    } else {
+                        d.pmf(x as u64)
+                    }
+                }
+                "cdf" => {
+                    if x < 1. {
+                        0.
+                    } else if x == f64::INFINITY {
+                        1.
+                    } else {
+                        d.cdf(x.floor() as u64)
+                    }
+                }
+                "inversecdf" => {
+                    if !(0. ..=1.).contains(&x) {
+                        f64::NAN
+                    } else {
+                        d.inverse_cdf(x) as f64
+                    }
+                }
+                _ => f64::NAN,
+            }
+        }
+        "discretedist" => {
+            if p.is_empty() || p.len() % 2 != 0 {
+                return Err(bad());
+            }
+            let total = p.chunks_exact(2).map(|p| p[1]).sum::<f64>();
+            match member {
+                "pdf" => {
+                    p.chunks_exact(2)
+                        .filter(|p| p[0] == x)
+                        .map(|p| p[1])
+                        .sum::<f64>()
+                        / total
+                }
+                "cdf" => {
+                    p.chunks_exact(2)
+                        .filter(|p| p[0] <= x)
+                        .map(|p| p[1])
+                        .sum::<f64>()
+                        / total
+                }
+                "inversecdf" => {
+                    if !(0. ..=1.).contains(&x) {
+                        f64::NAN
+                    } else {
+                        let mut pairs: Vec<_> = p.chunks_exact(2).filter(|p| p[1] > 0.).collect();
+                        pairs.sort_by(|a, b| a[0].total_cmp(&b[0]));
+                        let mut cumulative = 0.;
+                        let mut value = pairs.last().ok_or_else(bad)?[0];
+                        for pair in pairs {
+                            cumulative += pair[1] / total;
+                            if cumulative >= x {
+                                value = pair[0];
+                                break;
+                            }
+                        }
+                        value
+                    }
+                }
+                _ => f64::NAN,
+            }
         }
         _ => return Err("Unknown distribution.".into()),
     };
@@ -117,6 +187,15 @@ pub fn member(name: &str, args: &[Value]) -> Result<Value, String> {
     if name == "cdf" && args.len() == 3 {
         let low = args[1].scalar()?;
         let high = args[2].scalar()?;
+        if kind == "discretedist" {
+            let total: f64 = params.chunks_exact(2).map(|v| v[1]).sum();
+            let selected: f64 = params
+                .chunks_exact(2)
+                .filter(|v| v[0] >= low && v[0] <= high)
+                .map(|v| v[1])
+                .sum();
+            return Ok(Value::Scalar(selected / total));
+        }
         let low = if ["binomialdist", "poissondist", "geodist"].contains(&kind.as_str()) {
             low.ceil() - 1.
         } else {
@@ -158,4 +237,106 @@ mod tests {
                 < 1e-8
         );
     }
+}
+
+pub fn moments(name: &str, p: &[f64]) -> Result<(f64, f64), String> {
+    evaluate(name, p, "cdf", 0.)?;
+    Ok(match name {
+        "normaldist" => (
+            p.first().copied().unwrap_or(0.),
+            p.get(1).copied().unwrap_or(1.).powi(2),
+        ),
+        "uniformdist" => {
+            let a = p.first().copied().unwrap_or(0.);
+            let b = p.get(1).copied().unwrap_or(1.);
+            ((a + b) / 2., (b - a).powi(2) / 12.)
+        }
+        "tdist" => (
+            if p[0] > 1. { 0. } else { f64::NAN },
+            if p[0] > 2. {
+                p[0] / (p[0] - 2.)
+            } else if p[0] > 1. {
+                f64::INFINITY
+            } else {
+                f64::NAN
+            },
+        ),
+        "chisqdist" => (p[0], 2. * p[0]),
+        "binomialdist" => {
+            let chance = p.get(1).copied().unwrap_or(0.5);
+            (p[0] * chance, p[0] * chance * (1. - chance))
+        }
+        "poissondist" => (p[0], p[0]),
+        "geodist" => (1. / p[0], (1. - p[0]) / p[0].powi(2)),
+        "discretedist" => {
+            let total = p.chunks_exact(2).map(|p| p[1]).sum::<f64>();
+            let mean = p.chunks_exact(2).map(|p| p[0] * p[1]).sum::<f64>() / total;
+            let variance = p
+                .chunks_exact(2)
+                .map(|p| (p[0] - mean).powi(2) * p[1])
+                .sum::<f64>()
+                / total;
+            (mean, variance)
+        }
+        _ => return Err("Unknown distribution.".into()),
+    })
+}
+pub fn function(name: &str, args: &[Value]) -> Option<Result<Value, String>> {
+    if name == "discretedist" {
+        return Some((|| {
+            if args.is_empty() || args.len() > 2 {
+                return Err("Use discretedist(values, optional weights).".into());
+            }
+            let xs = args[0].numbers()?;
+            let weights = if args.len() == 2 {
+                args[1].numbers()?
+            } else {
+                vec![1.; xs.len()]
+            };
+            if xs.is_empty()
+                || xs.len() != weights.len()
+                || xs.iter().any(|x| !x.is_finite())
+                || weights.iter().any(|w| !w.is_finite() || *w < 0.)
+                || weights.iter().sum::<f64>() <= 0.
+            {
+                return Err("Use equally sized lists of values and nonnegative weights with a positive total.".into());
+            }
+            let p = xs
+                .into_iter()
+                .zip(weights)
+                .flat_map(|(x, w)| [x, w])
+                .collect();
+            Ok(Value::Distribution(name.into(), p))
+        })());
+    }
+    let Some(Value::Distribution(kind, p)) = args.first() else {
+        return None;
+    };
+    if ![
+        "mean", "median", "stdev", "stdevp", "var", "varp", "variance", "quantile", "quartile",
+    ]
+    .contains(&name)
+    {
+        return None;
+    }
+    Some((|| {
+        let (mean, var) = moments(kind, p)?;
+        let q = if name == "quantile" || name == "quartile" {
+            if args.len() != 2 {
+                return Err("Enter a quantile or quartile index.".into());
+            }
+            args[1].scalar()? / if name == "quartile" { 4. } else { 1. }
+        } else {
+            if args.len() != 1 {
+                return Err("This distribution property takes no arguments.".into());
+            }
+            0.5
+        };
+        Ok(Value::Scalar(match name {
+            "mean" => mean,
+            "stdev" | "stdevp" => var.sqrt(),
+            "var" | "varp" | "variance" => var,
+            _ => evaluate(kind, p, "inversecdf", q)?,
+        }))
+    })())
 }

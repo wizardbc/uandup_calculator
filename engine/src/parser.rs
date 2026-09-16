@@ -48,6 +48,18 @@ impl Expr {
     }
     fn collect(&self, out: &mut BTreeSet<String>) {
         match self {
+            Self::Call(name, xs)
+                if ["__for", "__with"].contains(&name.as_str()) && !xs.is_empty() =>
+            {
+                let mut body = xs[0].variables();
+                for pair in xs[1..].chunks_exact(2) {
+                    if let Self::Var(n) = &pair[0] {
+                        body.remove(n);
+                    }
+                    pair[1].collect(out);
+                }
+                out.extend(body);
+            }
             Self::Var(v) => {
                 if !["pi", "e", "infinity"].contains(&v.as_str()) {
                     out.insert(v.clone());
@@ -188,6 +200,53 @@ pub fn builtin(s: &str) -> bool {
         "pdf",
         "cdf",
         "inversecdf",
+        "real",
+        "imag",
+        "conj",
+        "arg",
+        "csch",
+        "sech",
+        "coth",
+        "stats",
+        "ztest",
+        "ttest",
+        "zproptest",
+        "chisqtest",
+        "chisqgof",
+        "null",
+        "conf",
+        "estimate",
+        "stderr",
+        "dof",
+        "score",
+        "p",
+        "pleft",
+        "pright",
+        "lower",
+        "upper",
+        "quartile",
+        "covp",
+        "spearman",
+        "varp",
+        "repeat",
+        "distance",
+        "midpoint",
+        "logbase",
+        "for",
+        "with",
+        "shuffle",
+        "random",
+        "discretedist",
+        "histogram",
+        "dotplot",
+        "boxplot",
+        "polygon",
+        "rgb",
+        "hsv",
+        "okhsv",
+        "oklab",
+        "oklch",
+        "tone",
     ]
     .contains(&s)
 }
@@ -245,7 +304,7 @@ pub fn normalize(input: &str) -> Result<String, String> {
                     let v = c[i];
                     i += 1;
                     match v {
-                        '{' | '}' | '|' => out.push(v),
+                        '{' | '}' | '|' | '%' => out.push(v),
                         _ => (),
                     };
                     continue;
@@ -255,6 +314,9 @@ pub fn normalize(input: &str) -> Result<String, String> {
                     i += 1;
                 }
                 let cmd: String = c[start..i].iter().collect();
+                while c.get(i).is_some_and(|v| v.is_whitespace()) {
+                    i += 1;
+                }
                 match cmd.as_str() {
                     "left" | "right" | "quad" | "qquad" | "displaystyle" => (),
                     "frac" | "dfrac" | "tfrac" => {
@@ -274,6 +336,9 @@ pub fn normalize(input: &str) -> Result<String, String> {
                         }
                         i += 1;
                         let lower = group(c, &mut i, depth)?;
+                        while c.get(i).is_some_and(|v| v.is_whitespace()) {
+                            i += 1;
+                        }
                         if c.get(i) != Some(&'^') {
                             return Err("Enter the upper bound.".into());
                         }
@@ -321,7 +386,9 @@ pub fn normalize(input: &str) -> Result<String, String> {
                         }
                     }
                     "operatorname" | "mathrm" | "text" => {
+                        out.push(' ');
                         out.push_str(&group(c, &mut i, depth)?);
+                        out.push(' ');
                     }
                     "cdot" | "times" => out.push('*'),
                     "div" => out.push('/'),
@@ -335,6 +402,7 @@ pub fn normalize(input: &str) -> Result<String, String> {
                     "rbrace" => out.push('}'),
                     "vert" | "lvert" | "rvert" => out.push('|'),
                     "ldots" | "dots" => out.push_str("..."),
+                    "prime" => out.push('\''),
                     _ => {
                         out.push(' ');
                         out.push_str(&cmd);
@@ -347,6 +415,7 @@ pub fn normalize(input: &str) -> Result<String, String> {
                 let sub = group(c, &mut i, depth)?;
                 out.push('_');
                 out.push_str(&sub.replace(['(', ')', ' '], ""));
+                out.push(' ');
             } else {
                 out.push(match ch {
                     '−' | '–' => '-',
@@ -429,6 +498,9 @@ fn lex(input: &str) -> Result<Vec<Tok>, String> {
                     out.push(Tok::Id(x.to_string()));
                 }
             }
+            while c.get(i).is_some_and(|v| v.is_whitespace()) {
+                i += 1;
+            }
             if c.get(i) == Some(&'_') {
                 i += 1;
                 let start = i;
@@ -448,7 +520,7 @@ fn lex(input: &str) -> Result<Vec<Tok>, String> {
             ')' | ']' | '}' => Tok::R(ch),
             ',' => Tok::Comma,
             ':' => Tok::Colon,
-            '+' | '-' | '*' | '/' | '^' | '=' | '<' | '>' | '!' | '~' | '%' | '|' | '.' => {
+            '+' | '-' | '*' | '/' | '^' | '=' | '<' | '>' | '!' | '~' | '%' | '|' | '.' | '\'' => {
                 let mut s = ch.to_string();
                 if ['<', '>', '!'].contains(&ch) && c.get(i) == Some(&'=') {
                     s.push('=');
@@ -506,7 +578,35 @@ impl Parser {
         let mut lhs = match self.next() {
             Tok::Num(n) => Expr::Num(n),
             Tok::Id(name) => {
-                if self.peek() == &Tok::L('(') {
+                if self.peek() == &Tok::Op("'".into()) {
+                    let mut order = 0;
+                    while self.peek() == &Tok::Op("'".into()) {
+                        self.next();
+                        order += 1;
+                    }
+                    if order > 4 {
+                        return Err("Use at most four derivative marks.".into());
+                    }
+                    let argument = if self.peek() == &Tok::L('(') {
+                        self.next();
+                        let mut args = self.args(')')?;
+                        if args.len() != 1 {
+                            return Err("A function derivative takes one argument.".into());
+                        }
+                        args.remove(0)
+                    } else {
+                        self.expression(21)?
+                    };
+                    let variable = Expr::Var("__derivative_variable".into());
+                    let mut body = Expr::Call(name, vec![variable.clone()]);
+                    for _ in 1..order {
+                        body = Expr::Call(
+                            "derivative".into(),
+                            vec![body, variable.clone(), variable.clone()],
+                        );
+                    }
+                    Expr::Call("derivative".into(), vec![body, variable, argument])
+                } else if self.peek() == &Tok::L('(') {
                     self.next();
                     let args = self.args(')')?;
                     Expr::Call(name, args)
@@ -594,7 +694,11 @@ impl Parser {
                             xs.push(self.expression(0)?);
                         }
                         self.close(']')?;
-                        Expr::List(xs)
+                        if xs.len() == 1 && matches!(&xs[0],Expr::Call(name,_) if name=="__for") {
+                            xs.remove(0)
+                        } else {
+                            Expr::List(xs)
+                        }
                     }
                 }
             }
@@ -602,16 +706,64 @@ impl Parser {
             _ => return Err("Finish the expression.".into()),
         };
         loop {
+            if matches!(self.peek(),Tok::Id(n) if n=="for" || n=="with") {
+                if min > 1 {
+                    break;
+                }
+                let Tok::Id(operator) = self.next() else {
+                    unreachable!()
+                };
+                let mut args = vec![lhs];
+                loop {
+                    let Tok::Id(name) = self.next() else {
+                        return Err("Enter a variable after for.".into());
+                    };
+                    if builtin(&name) || self.next() != Tok::Op("=".into()) {
+                        return Err("Use for variable = list.".into());
+                    }
+                    args.push(Expr::Var(name));
+                    args.push(self.expression(2)?);
+                    if self.peek() != &Tok::Comma {
+                        break;
+                    }
+                    let start = self.pos;
+                    if matches!(self.tokens.get(start + 1), Some(Tok::Id(_)))
+                        && self.tokens.get(start + 2) == Some(&Tok::Op("=".into()))
+                    {
+                        self.next();
+                    } else {
+                        break;
+                    }
+                }
+                let body = args.remove(0);
+                lhs = if let Expr::Binary(op, left, right) = body {
+                    if op == "=" || op == "~" {
+                        args.insert(0, *right);
+                        Expr::Binary(
+                            op,
+                            left,
+                            Box::new(Expr::Call(format!("__{operator}"), args)),
+                        )
+                    } else {
+                        args.insert(0, Expr::Binary(op, left, right));
+                        Expr::Call(format!("__{operator}"), args)
+                    }
+                } else {
+                    args.insert(0, body);
+                    Expr::Call(format!("__{operator}"), args)
+                };
+                continue;
+            }
             if self.peek() == &Tok::Op(".".into()) && 40 >= min {
                 self.next();
                 let Tok::Id(member) = self.next() else {
                     return Err("Enter a distribution function after the dot.".into());
                 };
-                if self.next() != Tok::L('(') {
-                    return Err("Enter the function arguments.".into());
-                }
                 let mut args = vec![lhs];
-                args.extend(self.args(')')?);
+                if self.peek() == &Tok::L('(') {
+                    self.next();
+                    args.extend(self.args(')')?);
+                }
                 lhs = Expr::Call(member, args);
                 continue;
             }

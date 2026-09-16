@@ -1,4 +1,4 @@
-# U&UP Calculator
+# MathAI Calculator
 
 **[Open the live calculator](https://wizardbc.github.io/uandup_calculator/)** · [Scientific mode](https://wizardbc.github.io/uandup_calculator/?mode=scientific)
 
@@ -6,7 +6,7 @@ The public demo runs on GitHub Pages and does not depend on a local development 
 
 A self-hosted graphing and scientific calculator for SAT practice interfaces. React and TypeScript provide the interface; a Rust/WebAssembly engine runs in a dedicated Web Worker. All calculation runs in the browser. No API key, paid calculator service, analytics, or external runtime request is required.
 
-The desktop layout follows measurements of the public College Board testing calculators. It uses the U&UP identity and independently written interface code. This is an independent project, with no affiliation or endorsement from College Board or Desmos.
+The desktop layout follows measurements of the public College Board testing calculators. It uses the MathAI identity and independently written interface code. This is an independent project, with no affiliation or endorsement from College Board or Desmos.
 
 ## Run locally
 
@@ -65,25 +65,25 @@ calculator.contentWindow.postMessage(
 
 Replies preserve `requestId`, `channel`, and `version`. State contains independent graphing/scientific histories, angle modes, graph bounds and styles. Retain its version and unique expression IDs. See `src/types.ts` for the schema. The host owns save/restore and examination lifecycle. `reset` clears both modes while preserving the current mode; the interface's “clear all” clears only the visible mode.
 
-For same-origin integration and diagnostics, `window.UandupCalculator` exposes `getState()`, `setState(state)`, `reset()`, and `getDiagnostics()`. Diagnostics report actual WASM execution time, engine readiness, and engine errors. The evaluation counter counts interpreter visits, not compiled numeric instructions.
+For same-origin integration and diagnostics, `window.MathAICalculator` (also available as `window.UandupCalculator` for existing integrations) exposes `getState()`, `setState(state)`, `reset()`, and `getDiagnostics()`. Diagnostics report actual WASM execution time, engine readiness, and engine errors. The evaluation counter counts interpreter visits, not compiled numeric instructions.
 
 ## Implemented behavior
 
-- Graphing/scientific mode switch, expression history, undo/redo, physical and on-screen keyboards, fraction/root input, table paste, sliders and animation, graph styles, settings, pan/zoom/pinch and coordinate tracing.
-- Real arithmetic, powers, trigonometry, logarithms, factorial/combinatorics, user variables and functions, lists, statistics, restrictions and piecewise expressions.
-- Explicit and implicit plots, inequalities, points, parametric and polar curves. Numerical intercepts, extrema, explicit intersections/tangencies and implicit/vertical intersections.
-- Finite definite integrals, numerical derivatives, finite sums/products, common probability distributions and list-based linear/nonlinear regression with selectable log mode.
-- Desktop and small-screen layouts, keyboard navigation, DesQuill math speech, contrast/text-size controls, and a basic audible scan of the selected curve.
+- Independent graphing and scientific histories and angle/complex modes, undo/redo, DesQuill mathematical editing, physical and on-screen keyboards, sliders, animation and state restoration.
+- Real and complex arithmetic, user variables/functions, list comprehensions and filters, descriptive statistics, finite numerical calculus, restrictions and piecewise expressions.
+- Explicit, implicit, inequality, point, polar and parametric graphs; editable curve domains; logarithmic axes, viewport locking, pan/zoom/pinch and numerical intersections.
+- Tables with multiple columns, computed columns, paste, regression model selection, residual variables/plots, and log mode. Histograms, dot plots, box plots and polygons.
+- Probability distributions with cumulative regions and inverse bounds; quantitative/proportion/chi-square inference with creation dialogs, confidence intervals, hypothesis tests and result export.
+- Custom RGB/HSV/OK color functions, list colors, seeded random samples, audible tones, point shapes, labels and draggable coordinates/variables.
+- Nemeth and UEB translation through a separate lazy-loaded MathCAT WASM module, six-key Braille input, contrast/text-size settings, and an audio trace panel with playback, navigation and descriptions.
 
 The numeric engine uses double precision. A compiled expression program accelerates repeated graph evaluation inside WASM. Adaptive sampling and refined marching squares feed transferable geometry buffers to Canvas 2D. Requests are coalesced, stale results discarded, and long-running Workers restarted after five seconds.
 
-## Compatibility and limits
+## Verification status
 
-This is a usable independent implementation, **not full feature or pixel parity** with the reference. The public testing pages were inspected; the installed Bluebook application's surrounding window was not tested. Brand text, custom icons, some settings/function menus, table/regression details and the responsive layout differ.
+Reference comparison is ongoing; this repository does not claim complete visual or behavioral equivalence. The comparison target is the public SAT testing calculator. The installed Bluebook host window and physical assistive devices have not been validated. Numerical calculus, nonlinear regression, implicit intersections, discontinuities and very large or small scales require case-specific checks. General symbolic algebra is outside this numerical engine.
 
-Complex-number mode, Braille modes, statistical inference, custom colors/sounds, full accessibility/audio-trace parity, symbolic algebra, list comprehensions, arbitrary table columns and all reference function syntaxes are not implemented. Parametric curves currently use `0 ≤ t ≤ 1`; polar curves use `0 ≤ θ ≤ 2π`. Finite numerical calculus and nonlinear regression have ordinary numerical limitations; very narrow/discontinuous features and ill-conditioned fits need independent checking. General implicit intersections use numerical refinement and may miss solutions. Large states, deep expressions and expensive computations are bounded. The engine is not a CAS and has not been certified for an official examination.
-
-Automated tests exercise Chromium, Firefox, WebKit and an iPhone-sized WebKit viewport. These are browser-engine/emulation tests on Linux, not physical iPad/iPhone validation or a guarantee for every older browser. Current desktop Chrome/Edge/Firefox/Safari and current iPad Safari are the intended targets. No speed comparison with the reference calculator is claimed.
+The tests exercise actual numeric and accessibility WASM, mathematical fixtures, Braille value-preserving round trips, editing, graph interactions, inference, distributions, computed tables, regression, point dragging, audio controls and iframe state exchange. Browser projects target Chromium, Firefox, WebKit and a phone-sized WebKit viewport. Automated browser engines and viewport emulation do not substitute for physical device testing. No speed advantage over the reference calculator is claimed.
 
 ## Tests
 
@@ -91,6 +91,7 @@ Automated tests exercise Chromium, Firefox, WebKit and an iPhone-sized WebKit vi
 npm run test:engine
 npx playwright install --with-deps chromium firefox webkit
 npm run build
+npm run test:wasm
 TEST_PRODUCTION=1 npm test
 ```
 
@@ -100,4 +101,4 @@ The browser suite checks real WASM startup, expression/keypad editing, results, 
 
 Original application and engine code: **BSD Zero Clause (0BSD)**, allowing commercial use and redistribution without an attribution condition. DesQuill remains **MPL-2.0**, and other dependencies retain their licenses; this repository does not relicense them as 0BSD. See [LICENSE](LICENSE), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and [the dependency inventory](licenses/dependency-inventory.json).
 
-The build includes required notices and the vendored DesQuill source. The U&UP logo opens `licenses.html` for recipients. Keep these materials with redistributed builds; changes to covered MPL files remain subject to MPL source-availability requirements.
+The build includes required notices and the vendored MPL source for DesQuill and option-ext. MathCAT, Temml and the other dependencies retain their own notices. The MathAI logo opens `licenses.html` for recipients. Keep these materials with redistributed builds; changes to covered MPL files remain subject to MPL source-availability requirements.

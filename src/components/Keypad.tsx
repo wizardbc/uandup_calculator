@@ -69,18 +69,20 @@ const enter = key("Enter", "enter", "Enter", "blue enter");
 const num = (n: string) => text(n, n, n, "gray number");
 const op = (s: string, label: string, aria: string) => text(s, label, aria);
 const func = (s: string, display = `\\operatorname{${s}}`) =>
-  latex(`\\operatorname{${s}}(`, display, s);
+  latex(`\\operatorname{${s}}\\left(\\right)`, display, s);
 const digits: Key[][] = [
   [num("7"), num("8"), num("9"), op("/", "÷", "Divide")],
   [num("4"), num("5"), num("6"), op("*", "×", "Times")],
   [num("1"), num("2"), num("3"), op("-", "−", "Minus")],
   [num("0"), num("."), op("=", "=", "="), op("+", "+", "Plus")],
 ];
+const names = (...values: string[]): [string, string?][] =>
+  values.map((name) => [name]);
 export const FUNCTION_GROUPS: { title: string; items: [string, string?][] }[] =
   [
     {
       title: "TRIG FUNCTIONS",
-      items: [["sin"], ["cos"], ["tan"], ["csc"], ["sec"], ["cot"]],
+      items: names("sin", "cos", "tan", "csc", "sec", "cot"),
     },
     {
       title: "INVERSE TRIG FUNCTIONS",
@@ -95,83 +97,128 @@ export const FUNCTION_GROUPS: { title: string; items: [string, string?][] }[] =
     },
     {
       title: "STATISTICS",
-      items: [
-        ["mean"],
-        ["median"],
-        ["min"],
-        ["max"],
-        ["quantile"],
-        ["stdev"],
-        ["stdevp"],
-        ["variance", "var"],
-        ["cov"],
-        ["mad"],
-        ["corr"],
-        ["count"],
-        ["total"],
-      ],
+      items: names(
+        "mean",
+        "median",
+        "min",
+        "max",
+        "quartile",
+        "quantile",
+        "stdev",
+        "stdevp",
+        "var",
+        "varp",
+        "cov",
+        "covp",
+        "mad",
+        "corr",
+        "spearman",
+        "stats",
+        "count",
+        "total",
+      ),
     },
     {
       title: "LIST OPERATIONS",
-      items: [["join"], ["sort"], ["unique"], ["length"]],
+      items: names("repeat", "join", "sort", "shuffle", "unique", "for"),
+    },
+    {
+      title: "VISUALIZATIONS",
+      items: names("histogram", "dotplot", "boxplot"),
     },
     {
       title: "PROBABILITY DISTRIBUTIONS",
-      items: [
-        ["normaldist"],
-        ["tdist"],
-        ["chisqdist"],
-        ["uniformdist"],
-        ["binomialdist"],
-        ["poissondist"],
-        ["geodist"],
-        ["pdf"],
-        ["cdf"],
-        ["inversecdf"],
-      ],
+      items: names(
+        "normaldist",
+        "tdist",
+        "chisqdist",
+        "uniformdist",
+        "binomialdist",
+        "poissondist",
+        "geodist",
+        "discretedist",
+        "pdf",
+        "cdf",
+        "inversecdf",
+        "random",
+      ),
+    },
+    {
+      title: "INFERENCE",
+      items: names(
+        "ztest",
+        "ttest",
+        "zproptest",
+        "chisqtest",
+        "chisqgof",
+        "null",
+        "p",
+        "pleft",
+        "pright",
+        "score",
+        "dof",
+        "stderr",
+        "conf",
+        "lower",
+        "upper",
+        "estimate",
+      ),
     },
     {
       title: "CALCULUS",
       items: [
-        ["exp"],
-        ["ln"],
-        ["log"],
-        ["derivative"],
-        ["integral"],
-        ["sum"],
-        ["product"],
+        ...names("exp", "ln", "log"),
+        ["logbase", "\\log_a"],
+        ["derivative", "\\frac{d}{dx}"],
+        ["fprime", "f'"],
+        ["integral", "\\int_{}^{}"],
+        ["sum", "\\sum_{}^{}"],
+        ["product", "\\prod_{}^{}"],
       ],
     },
     {
       title: "HYPERBOLIC TRIG FUNCTIONS",
-      items: [
-        ["sinh"],
-        ["cosh"],
-        ["tanh"],
-        ["arcsinh"],
-        ["arccosh"],
-        ["arctanh"],
-      ],
+      items: names("sinh", "cosh", "tanh", "csch", "sech", "coth"),
     },
+    { title: "GEOMETRY", items: names("polygon", "distance", "midpoint") },
+    {
+      title: "CUSTOM COLORS",
+      items: names("rgb", "hsv", "okhsv", "oklab", "oklch"),
+    },
+    { title: "SOUND", items: names("tone") },
     {
       title: "NUMBER THEORY",
-      items: [
-        ["lcm"],
-        ["gcd"],
-        ["mod"],
-        ["ceil"],
-        ["floor"],
-        ["round"],
-        ["sign"],
-        ["root"],
-        ["nPr"],
-        ["nCr"],
-      ],
+      items: names(
+        "lcm",
+        "gcd",
+        "mod",
+        "ceil",
+        "floor",
+        "round",
+        "sign",
+        "root",
+        "nPr",
+        "nCr",
+      ),
     },
   ];
+function menuKey(name: string, display?: string): Key {
+  const special: Record<string, Key> = {
+    p: latex("p", "p", "p"),
+    root: nthRoot,
+    fprime: text("'", <MathText latex="f'" />, "Function derivative"),
+    logbase: latex("\\log_{}\\left(\\right)", "\\log_a", "Log A"),
+    derivative: latex("\\frac{d}{dx}", "\\frac{d}{dx}", "ddx"),
+    integral: latex("\\int_{}^{}", "\\int_{}^{}", "Integral"),
+    sum: latex("\\sum_{}^{}", "\\sum_{}^{}", "Sum"),
+    product: latex("\\prod_{}^{}", "\\prod_{}^{}", "Product"),
+  };
+  return special[name] ?? func(name, display ?? `\\operatorname{${name}}`);
+}
 
 export function Keypad({
   scientific = false,
+  complex = false,
   onKey,
   degrees,
   onDegrees,
@@ -183,6 +230,7 @@ export function Keypad({
   onSettings,
 }: {
   scientific?: boolean;
+  complex?: boolean;
   onKey: (action: KeyAction) => void;
   degrees: boolean;
   onDegrees: (degrees: boolean) => void;
@@ -209,7 +257,12 @@ export function Keypad({
     </button>
   );
   const leftGraph: Key[][] = [
-    [latex("x", "x", "x"), latex("y", "y", "y"), square, power],
+    [
+      latex("x", "x", "x"),
+      latex("y", "y", "y"),
+      complex ? latex("i", "i", "i") : square,
+      power,
+    ],
     [text("("), text(")"), text("<"), text(">")],
     [abs, text(","), latex("\\le", "\\le", "<="), latex("\\ge", "\\ge", ">=")],
     [
@@ -412,7 +465,12 @@ export function Keypad({
                   {row === 0 ? (
                     scientific ? (
                       <>
-                        {button(text("%", "%", "Percent Of"), 0)}
+                        {button(
+                          complex
+                            ? latex("i", "i", "i")
+                            : text("%", "%", "Percent Of"),
+                          0,
+                        )}
                         {button(
                           latex("\\frac{}{}", "\\frac{a}{b}", "A over B"),
                           1,
@@ -450,12 +508,21 @@ export function Keypad({
             role="dialog"
             aria-label="Functions"
           >
-            {FUNCTION_GROUPS.map((group) => (
+            {(complex
+              ? [
+                  ...FUNCTION_GROUPS,
+                  {
+                    title: "COMPLEX",
+                    items: names("real", "imag", "conj", "arg"),
+                  },
+                ]
+              : FUNCTION_GROUPS
+            ).map((group) => (
               <section key={group.title}>
                 <h3>{group.title}</h3>
                 <div className="function-grid">
                   {group.items.map(([name, display], i) =>
-                    button(func(name, display ?? `\\operatorname{${name}}`), i),
+                    button(menuKey(name, display), i),
                   )}
                 </div>
               </section>

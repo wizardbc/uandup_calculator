@@ -3,6 +3,97 @@ import { DEFAULT_SETTINGS, type CalculatorState, type Item } from "./types";
 function object(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
 }
+function plotStyle(value: unknown): boolean {
+  if (value === undefined || value === null) return true;
+  if (!object(value)) return false;
+  return (
+    [
+      "points",
+      "lines",
+      "fill",
+      "pointOutline",
+      "showLabel",
+      "labelOutline",
+    ].every((k) => value[k] === undefined || typeof value[k] === "boolean") &&
+    [
+      "pointSize",
+      "pointOpacity",
+      "lineWidth",
+      "lineOpacity",
+      "fillOpacity",
+      "label",
+      "screenReaderLabel",
+      "labelSize",
+      "labelAngle",
+    ].every(
+      (k) =>
+        value[k] === undefined ||
+        (typeof value[k] === "string" && value[k].length <= 512),
+    ) &&
+    (value.pointStyle === undefined ||
+      [
+        "point",
+        "open",
+        "cross",
+        "square",
+        "plus",
+        "triangle",
+        "diamond",
+        "star",
+      ].includes(String(value.pointStyle))) &&
+    (value.lineStyle === undefined ||
+      ["solid", "dashed", "dotted"].includes(String(value.lineStyle))) &&
+    (value.labelOrientation === undefined ||
+      [
+        "default",
+        "above",
+        "below",
+        "left",
+        "right",
+        "above_left",
+        "above_right",
+        "below_left",
+        "below_right",
+      ].includes(String(value.labelOrientation))) &&
+    (value.dragMode === undefined ||
+      ["none", "x", "y", "xy"].includes(String(value.dragMode)))
+  );
+}
+function visualization(value: unknown): boolean {
+  if (value === undefined) return true;
+  return (
+    object(value) &&
+    ["boxOffset", "boxHeight"].every(
+      (k) =>
+        value[k] === undefined ||
+        (typeof value[k] === "string" && value[k].length <= 512),
+    ) &&
+    (value.histogramMode === undefined ||
+      ["count", "relative", "density"].includes(String(value.histogramMode))) &&
+    (value.binAlignment === undefined ||
+      ["center", "left"].includes(String(value.binAlignment))) &&
+    (value.showOutliers === undefined ||
+      typeof value.showOutliers === "boolean")
+  );
+}
+function distribution(value: unknown): boolean {
+  return (
+    value === undefined ||
+    (object(value) &&
+      ["show", "summary"].every(
+        (k) => value[k] === undefined || typeof value[k] === "boolean",
+      ) &&
+      ["lower", "upper", "area"].every(
+        (k) =>
+          value[k] === undefined ||
+          (typeof value[k] === "string" && value[k].length <= 512),
+      ) &&
+      (value.region === undefined ||
+        ["inner", "outer", "left", "right"].includes(String(value.region))) &&
+      (value.compute === undefined ||
+        ["area", "bounds"].includes(String(value.compute))))
+  );
+}
 function validItem(value: unknown): value is Item {
   if (
     !object(value) ||
@@ -24,6 +115,37 @@ function validItem(value: unknown): value is Item {
     return (
       typeof value.latex === "string" &&
       value.latex.length <= 8192 &&
+      visualization(value.visualization) &&
+      plotStyle(value.plotStyle) &&
+      distribution(value.distribution) &&
+      [
+        "inferenceLevel",
+        "inferenceNull",
+        "colorLatex",
+        "domainMin",
+        "domainMax",
+        "residualVariable",
+        "sliderMinLatex",
+        "sliderMaxLatex",
+        "sliderStepLatex",
+      ].every(
+        (k) =>
+          value[k] === undefined ||
+          (typeof value[k] === "string" && value[k].length <= 512),
+      ) &&
+      (value.inferenceTails === undefined ||
+        ["left", "both", "right"].includes(String(value.inferenceTails))) &&
+      (value.sliderLoopMode === undefined ||
+        [
+          "LOOP_FORWARD_REVERSE",
+          "LOOP_FORWARD",
+          "PLAY_ONCE",
+          "PLAY_INDEFINITELY",
+        ].includes(String(value.sliderLoopMode))) &&
+      (value.sliderSpeed === undefined ||
+        (typeof value.sliderSpeed === "number" &&
+          value.sliderSpeed >= 0.05 &&
+          value.sliderSpeed <= 20)) &&
       ["sliderMin", "sliderMax", "sliderStep", "lineWidth", "opacity"].every(
         (k) =>
           value[k] === undefined ||
@@ -32,20 +154,75 @@ function validItem(value: unknown): value is Item {
     );
   return (
     value.type === "table" &&
+    (value.regression === undefined ||
+      (object(value.regression) &&
+        [
+          "linear",
+          "quadratic",
+          "cubic",
+          "quartic",
+          "exponential",
+          "logarithmic",
+          "power",
+          "logistic",
+          "sinusoidal",
+        ].includes(String(value.regression.model)) &&
+        ["xColumn", "yColumn"].every(
+          (k) =>
+            typeof value.regression === "object" &&
+            value.regression !== null &&
+            Number.isInteger(
+              (value.regression as Record<string, unknown>)[k],
+            ) &&
+            Number((value.regression as Record<string, unknown>)[k]) >= 0 &&
+            Number((value.regression as Record<string, unknown>)[k]) <
+              (Array.isArray(value.headers) ? value.headers.length : 0),
+        ) &&
+        typeof value.regression.hidden === "boolean" &&
+        typeof value.regression.color === "string" &&
+        /^#[\da-fA-F]{6}$/.test(value.regression.color) &&
+        typeof value.regression.residualVariable === "string" &&
+        value.regression.residualVariable.length <= 64 &&
+        (value.regression.logMode === undefined ||
+          typeof value.regression.logMode === "boolean"))) &&
     Array.isArray(value.headers) &&
-    value.headers.length === 2 &&
+    value.headers.length >= 2 &&
+    value.headers.length <= 20 &&
     value.headers.every((v) => typeof v === "string" && v.length <= 64) &&
+    (value.columnStyles === undefined ||
+      (Array.isArray(value.columnStyles) &&
+        value.columnStyles.length <= 20 &&
+        value.columnStyles.every(plotStyle))) &&
+    (value.columnColorLatex === undefined ||
+      (Array.isArray(value.columnColorLatex) &&
+        value.columnColorLatex.every(
+          (c) => c == null || (typeof c === "string" && c.length <= 512),
+        ))) &&
+    (value.columnColors === undefined ||
+      (Array.isArray(value.columnColors) &&
+        value.columnColors.length <= 20 &&
+        value.columnColors.every(
+          (v) =>
+            v == null || (typeof v === "string" && /^#[\da-fA-F]{6}$/.test(v)),
+        ))) &&
+    (value.columnHidden === undefined ||
+      (Array.isArray(value.columnHidden) &&
+        value.columnHidden.length <= 20 &&
+        value.columnHidden.every(
+          (v) => v == null || typeof v === "boolean",
+        ))) &&
     Array.isArray(value.values) &&
     value.values.length <= 2000 &&
     value.values.every(
       (row) =>
         Array.isArray(row) &&
-        row.length === 2 &&
+        row.length === (value.headers as string[]).length &&
         row.every((v) => typeof v === "string" && v.length <= 512),
     )
   );
 }
 export function validateState(value: unknown): CalculatorState {
+  value = structuredClone(value);
   if (
     !object(value) ||
     value.version !== 1 ||
@@ -55,6 +232,18 @@ export function validateState(value: unknown): CalculatorState {
   )
     throw new Error("Invalid calculator state.");
   const { graph, scientific } = value;
+  if (
+    graph.randomSeed !== undefined &&
+    (typeof graph.randomSeed !== "number" ||
+      !Number.isSafeInteger(graph.randomSeed) ||
+      graph.randomSeed < 0 ||
+      graph.randomSeed > 0xffffffff)
+  )
+    throw new Error("Invalid random seed.");
+  // Add defaults to older v1 snapshots without modifying the caller's object.
+  if (object(graph.settings))
+    graph.settings = { ...DEFAULT_SETTINGS, ...graph.settings };
+  if (scientific.complex === undefined) scientific.complex = false;
   if (
     !Array.isArray(graph.items) ||
     !Array.isArray(scientific.items) ||
@@ -88,8 +277,14 @@ export function validateState(value: unknown): CalculatorState {
     )
   )
     throw new Error("Invalid graph span.");
-  if (!object(graph.settings) || typeof scientific.degrees !== "boolean")
+  if (
+    !object(graph.settings) ||
+    typeof scientific.degrees !== "boolean" ||
+    typeof scientific.complex !== "boolean"
+  )
     throw new Error("Invalid calculator settings.");
+  if (!["none", "Nemeth", "UEB"].includes(String(graph.settings.braille)))
+    throw new Error("Invalid Braille mode.");
   for (const [key, expected] of Object.entries(DEFAULT_SETTINGS))
     if (
       typeof graph.settings[key] !== typeof expected ||
@@ -97,6 +292,11 @@ export function validateState(value: unknown): CalculatorState {
         String(graph.settings[key]).length > 100)
     )
       throw new Error("Invalid graph settings.");
+  for (const axis of ["x", "y"] as const) {
+    if (graph.settings[`${axis}Log`] && Number(v[`${axis}Min`]) <= 0)
+      throw new Error("Logarithmic bounds must be positive.");
+    v[`${axis}Log`] = graph.settings[`${axis}Log`];
+  }
   return JSON.parse(JSON.stringify(value)) as CalculatorState;
 }
 

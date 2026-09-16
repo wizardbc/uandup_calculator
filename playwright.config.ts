@@ -4,6 +4,7 @@ const baseURL = production ? "http://127.0.0.1:4173" : "http://127.0.0.1:5173";
 
 export default defineConfig({
   testDir: "./tests",
+  testIgnore: "**/numerical.test.mjs",
   fullyParallel: true,
   timeout: 30000,
   expect: { timeout: 7000 },
