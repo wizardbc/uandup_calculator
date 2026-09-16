@@ -3,7 +3,21 @@ import {
   regressionLatex,
   regressionParameter,
 } from "./regressionModels.ts";
-import type { EngineInput, Item, Table } from "../types";
+import type { EngineInput, Item, Table, RowResult } from "../types";
+export function tableCoordinates(
+  columns: (RowResult | undefined)[],
+): [number, number][][] {
+  const x = columns[0]?.listValues ?? [];
+  return columns.slice(1).map((column) =>
+    x.flatMap((value, i) => {
+      const a = Number(value),
+        b = Number(column?.listValues?.[i]);
+      return Number.isFinite(a) && Number.isFinite(b)
+        ? [[a, b] as [number, number]]
+        : [];
+    }),
+  );
+}
 export const simpleVariable = (s: string) =>
   /^(?:[A-Za-z]|\\(?:theta|alpha|beta))(?:_(?:\{[A-Za-z0-9]+\}|[A-Za-z0-9]+))?$/.test(
     s.trim(),

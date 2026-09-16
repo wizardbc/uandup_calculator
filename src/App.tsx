@@ -1,5 +1,5 @@
 import { AudioTrace } from "./components/AudioTrace";
-import { computedColumns } from "./engine/tables";
+import { computedColumns, tableCoordinates } from "./engine/tables";
 import { resultLatex } from "./components/resultLatex";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
@@ -97,6 +97,16 @@ export default function App() {
   const scientific = state.mode === "scientific";
   const items = scientific ? state.scientific.items : state.graph.items;
   const results = new Map(scene?.rows.map((row) => [row.id, row]));
+  const tableData = new Map(
+    state.graph.items
+      .filter((item) => item.type === "table")
+      .map((table) => [
+        table.id,
+        tableCoordinates(
+          table.headers.map((_, c) => results.get(`${table.id}-col-${c}`)),
+        ),
+      ]),
+  );
   const list = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const tones = scientific
@@ -730,12 +740,18 @@ export default function App() {
                         values: [["", ""]],
                       };
                       const next = [...state.graph.items];
+                      const empty = next.findIndex(
+                        (item) =>
+                          item.type === "expression" && !item.latex.trim(),
+                      );
                       const at = active
                         ? Math.max(
                             0,
                             next.findIndex((i) => i.id === active),
                           )
-                        : next.length;
+                        : empty >= 0
+                          ? empty
+                          : next.length;
                       next.splice(at, 0, table);
                       changeItems(next);
                       setAddOpen(false);
@@ -783,25 +799,12 @@ export default function App() {
               <div className="expression-list" ref={list}>
                 {state.graph.items.map((item, index) => (
                   <ExpressionRow
+                    tablePointCounts={(tableData.get(item.id) ?? []).map(
+                      (points) => points.length,
+                    )}
                     fitResult={results.get(`${item.id}:regression`)}
                     onZoomFit={() => {
-                      const points = (scene?.rows ?? [])
-                        .filter(
-                          (r) =>
-                            r.id === item.id ||
-                            r.id.startsWith(`${item.id}:plot:`),
-                        )
-                        .flatMap((r) =>
-                          r.geometry
-                            .filter((g) => g.kind === "points")
-                            .flatMap((g) =>
-                              Array.from({ length: g.count / 2 }, (_, i) => [
-                                scene!.data[g.start + i * 2],
-                                scene!.data[g.start + i * 2 + 1],
-                              ]),
-                            ),
-                        )
-                        .filter((p) => Number.isFinite(p[0] + p[1]));
+                      const points = (tableData.get(item.id) ?? []).flat();
                       if (!points.length) return;
                       const xs = points.map((p) => p[0]),
                         ys = points.map((p) => p[1]);

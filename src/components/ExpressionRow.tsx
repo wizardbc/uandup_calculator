@@ -41,6 +41,7 @@ export function ExpressionRow({
   computed = [],
   fitResult,
   onZoomFit,
+  tablePointCounts = [],
 }: {
   item: Item;
   index: number;
@@ -61,6 +62,7 @@ export function ExpressionRow({
   computed?: boolean[];
   fitResult?: RowResult;
   onZoomFit?: () => void;
+  tablePointCounts?: number[];
 }) {
   const [styleOpen, setStyleOpen] = useState(false);
   const { code: brailleCode } = useContext(BrailleContext);
@@ -95,6 +97,12 @@ export function ExpressionRow({
           <>
             <button
               className="table-add-regression"
+              style={{
+                display:
+                  Math.max(0, ...tablePointCounts) >= 2 && !item.regression
+                    ? undefined
+                    : "none",
+              }}
               aria-label="Add Regression"
               disabled={!!item.regression}
               onClick={() =>
@@ -103,7 +111,10 @@ export function ExpressionRow({
                   regression: {
                     model: "linear",
                     xColumn: 0,
-                    yColumn: 1,
+                    yColumn: Math.max(
+                      1,
+                      tablePointCounts.findIndex((count) => count >= 2) + 1,
+                    ),
                     color: "#6042a6",
                     hidden: false,
                     residualVariable: "",
@@ -122,6 +133,10 @@ export function ExpressionRow({
             </button>
             <button
               className="table-zoom-fit"
+              style={{
+                display:
+                  Math.max(0, ...tablePointCounts) >= 1 ? undefined : "none",
+              }}
               aria-label="Zoom Fit"
               onClick={onZoomFit}
             >
@@ -375,6 +390,7 @@ export function ExpressionRow({
         ) : (
           <>
             <TableEditor
+              pointCounts={tablePointCounts}
               columnResults={columnResults}
               computed={computed}
               customColors={customColors}
@@ -438,6 +454,7 @@ export function ExpressionRow({
 }
 
 function TableEditor({
+  pointCounts,
   item,
   columnResults,
   computed,
@@ -447,6 +464,7 @@ function TableEditor({
   register,
 }: {
   item: Table;
+  pointCounts: number[];
   columnResults: (RowResult | undefined)[];
   computed: boolean[];
   customColors: { name: string; colors: string[] }[];
@@ -724,7 +742,7 @@ function TableEditor({
               });
             }}
             onAddRegression={
-              item.regression
+              item.regression || (pointCounts[columnMenu - 1] ?? 0) < 2
                 ? undefined
                 : () => {
                     onChange({

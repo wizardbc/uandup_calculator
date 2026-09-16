@@ -130,6 +130,15 @@ test("table paste and a linear regression recover known parameters", async ({
 }) => {
   await page.getByRole("button", { name: "Add Item", exact: true }).click();
   await page.getByRole("button", { name: "table", exact: true }).click();
+  await expect(page.locator(".expression-row").first()).toHaveClass(
+    /table-row/,
+  );
+  await expect(
+    page.getByRole("button", { name: "Add Regression", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Zoom Fit", exact: true }),
+  ).toHaveCount(0);
   const cell = page.getByRole("textbox", { name: /^Table row 1 column 1:/ });
   await cell.focus();
   await cell.evaluate((el) => {
