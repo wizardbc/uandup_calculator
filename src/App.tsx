@@ -325,7 +325,7 @@ export default function App() {
     } else if (action.type === "key") api.keystroke(action.value);
     else api.typedText(action.value);
   }
-  useEffect(() => {
+  useLayoutEffect(() => {
     engine.current = new EngineClient((value, evaluated) => {
       setScene(value);
       setEngineError(null);
@@ -397,12 +397,10 @@ export default function App() {
     return () => document.removeEventListener("focusin", focused);
   }, []);
   const inputKey = JSON.stringify(engineInput(state));
-  useEffect(() => {
-    const id = setTimeout(
-      () => engine.current?.calculate(JSON.parse(inputKey)),
-      24,
-    );
-    return () => clearTimeout(id);
+  useLayoutEffect(() => {
+    // Dispatch before paint; EngineClient already keeps only the newest
+    // pending input while a calculation is in flight.
+    engine.current?.calculate(JSON.parse(inputKey));
   }, [inputKey]);
   useEffect(() => {
     const api = {
