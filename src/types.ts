@@ -48,6 +48,7 @@ export type Viewport = {
   height: number;
   xLog?: boolean;
   yLog?: boolean;
+  boundsLatex?: Partial<Record<"xMin" | "xMax" | "yMin" | "yMax", string>>;
 };
 export type GraphSettings = {
   grid: boolean;
@@ -366,6 +367,16 @@ export function engineInput(state: CalculatorState): EngineInput {
     else {
       expressions.push(...tableExpressions(row, state.graph.items));
     }
+  }
+  for (const [key, latex] of Object.entries(
+    state.graph.viewport.boundsLatex ?? {},
+  ))
+    if (latex)
+      expressions.push({ id: `__viewport-${key}`, latex, auxiliary: true });
+  for (const axis of ["x", "y"] as const) {
+    const latex = state.graph.settings[`${axis}Step`];
+    if (latex)
+      expressions.push({ id: `__step-${axis}`, latex, auxiliary: true });
   }
   return {
     expressions,

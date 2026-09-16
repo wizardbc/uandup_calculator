@@ -310,15 +310,35 @@ impl CalculatorEngine {
         let mut fits = HashMap::new();
         let mut regression_index = 0;
         let mut residual_names = HashMap::new();
+        let mut used_residual_names: std::collections::HashSet<String> = env
+            .definitions
+            .keys()
+            .chain(env.values.keys())
+            .cloned()
+            .collect();
+        for source in &req.expressions {
+            if let Some(latex) = &source.residual_variable {
+                if let Ok(Expr::Var(name)) = parser::parse(latex) {
+                    used_residual_names.insert(name);
+                }
+            }
+        }
         for (i, ast) in parsed.iter().enumerate() {
             if let Some(Ok(Expr::Binary(op, a, b))) = ast {
                 if op == "~" {
                     let source = &req.expressions[i];
-                    regression_index += 1;
                     let residual_name = source
                         .residual_variable
                         .clone()
-                        .unwrap_or_else(|| format!("e_{{{regression_index}}}"));
+                        .filter(|name| !name.trim().is_empty())
+                        .unwrap_or_else(|| {
+                            loop {
+                                regression_index += 1;
+                                if used_residual_names.insert(format!("e_{regression_index}")) {
+                                    break format!("e_{{{regression_index}}}");
+                                }
+                            }
+                        });
                     residual_names.insert(i, residual_name.clone());
                     let mut fit_env = env.clone();
                     for n in &source.regression_parameters {

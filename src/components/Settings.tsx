@@ -52,7 +52,11 @@ export function Settings({
   async function bounds(key: "xMin" | "xMax" | "yMin" | "yMax", value: string) {
     try {
       const n = await evaluateConstant(value, expressions, settings.degrees);
-      const next = { ...latestViewport.current, [key]: n };
+      const next = {
+        ...latestViewport.current,
+        [key]: n,
+        boundsLatex: { ...latestViewport.current.boundsLatex, [key]: value },
+      };
       if (
         next.xMin >= next.xMax ||
         next.yMin >= next.yMax ||
@@ -220,13 +224,19 @@ export function Settings({
               </div>
               <div className="axis-bounds">
                 <ConstantField
-                  value={formatCoordinate(viewport[`${axis}Min`])}
+                  value={
+                    viewport.boundsLatex?.[`${axis}Min`] ??
+                    formatCoordinate(viewport[`${axis}Min`])
+                  }
                   label={`${axis.toUpperCase()} axis minimum`}
                   onCommit={(value) => void bounds(`${axis}Min`, value)}
                 />
                 <MathText latex={`\\le ${axis}\\le`} />
                 <ConstantField
-                  value={formatCoordinate(viewport[`${axis}Max`])}
+                  value={
+                    viewport.boundsLatex?.[`${axis}Max`] ??
+                    formatCoordinate(viewport[`${axis}Max`])
+                  }
                   label={`${axis.toUpperCase()} axis maximum`}
                   onCommit={(value) => void bounds(`${axis}Max`, value)}
                 />
@@ -249,7 +259,7 @@ export function Settings({
                           .then((n) => {
                             if (n > 0) {
                               setInvalid("");
-                              change(`${axis}Step`, String(n));
+                              change(`${axis}Step`, value);
                             } else
                               setInvalid("The axis step must be positive.");
                           })

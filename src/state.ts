@@ -272,6 +272,17 @@ export function validateState(value: unknown): CalculatorState {
   )
     throw new Error("Invalid graph bounds.");
   if (
+    v.boundsLatex !== undefined &&
+    (!object(v.boundsLatex) ||
+      Object.entries(v.boundsLatex).some(
+        ([key, latex]) =>
+          !["xMin", "xMax", "yMin", "yMax"].includes(key) ||
+          typeof latex !== "string" ||
+          latex.length > 512,
+      ))
+  )
+    throw new Error("Invalid axis bound expression.");
+  if (
     ![Number(v.xMax) - Number(v.xMin), Number(v.yMax) - Number(v.yMin)].every(
       (n) => Number.isFinite(n) && n > 0,
     )

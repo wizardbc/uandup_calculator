@@ -244,8 +244,17 @@ export default function App() {
     setScene(null);
     lastField.current = null;
   }
-  function viewport(next: Viewport) {
+  function viewport(next: Viewport, preserveLatex = false) {
     const s = current.current;
+    if (
+      !preserveLatex &&
+      ["xMin", "xMax", "yMin", "yMax"].some(
+        (key) =>
+          next[key as keyof Viewport] !==
+          s.graph.viewport[key as keyof Viewport],
+      )
+    )
+      next = { ...next, boundsLatex: undefined };
     commit({ ...s, graph: { ...s.graph, viewport: next } }, "viewport", false);
   }
   function home() {
@@ -307,9 +316,62 @@ export default function App() {
     else api.typedText(action.value);
   }
   useEffect(() => {
-    engine.current = new EngineClient((value) => {
+    engine.current = new EngineClient((value, evaluated) => {
       setScene(value);
       setEngineError(null);
+      const s = current.current;
+      if (
+        s.mode !== "graphing" ||
+        JSON.stringify(engineInput(s)) !== JSON.stringify(evaluated)
+      )
+        return;
+      const rows = new Map(value.rows.map((row) => [row.id, row]));
+      let changed = false;
+      const items = s.graph.items.map((item) => {
+        const name = rows.get(
+          item.type === "table" ? `${item.id}:regression` : item.id,
+        )?.residualVariable;
+        if (!name) return item;
+        if (item.type === "expression" && !item.residualVariable) {
+          changed = true;
+          return { ...item, residualVariable: name };
+        }
+        if (
+          item.type === "table" &&
+          item.regression &&
+          !item.regression.residualVariable
+        ) {
+          changed = true;
+          return {
+            ...item,
+            regression: { ...item.regression, residualVariable: name },
+          };
+        }
+        return item;
+      });
+      let v = { ...s.graph.viewport };
+      for (const key of ["xMin", "xMax", "yMin", "yMax"] as const) {
+        const n = rows.get(`__viewport-${key}`)?.value;
+        if (typeof n === "number" && Number.isFinite(n)) v[key] = n;
+      }
+      const valid =
+        v.xMin < v.xMax &&
+        v.yMin < v.yMax &&
+        (!v.xLog || v.xMin > 0) &&
+        (!v.yLog || v.yMin > 0);
+      if (!valid) v = s.graph.viewport;
+      else
+        changed ||= ["xMin", "xMax", "yMin", "yMax"].some(
+          (key) =>
+            v[key as keyof Viewport] !==
+            s.graph.viewport[key as keyof Viewport],
+        );
+      if (changed)
+        commit(
+          { ...s, graph: { ...s.graph, items, viewport: v } },
+          "derived",
+          false,
+        );
     }, setEngineError);
     return () => engine.current?.stop();
   }, []);
@@ -531,6 +593,10 @@ export default function App() {
                 onUndo={undo}
                 onRedo={redo}
                 onClear={() => setClearOpen(true)}
+                canClear={state.scientific.items.some((item) =>
+                  item.latex.trim(),
+                )}
+                settingsOpen={settingsOpen}
                 onSettings={() => setSettingsOpen(!settingsOpen)}
               />
               {settingsOpen && (
@@ -539,7 +605,7 @@ export default function App() {
                   scientific
                   settings={settings}
                   viewport={state.graph.viewport}
-                  onViewport={viewport}
+                  onViewport={(next) => viewport(next, true)}
                   onSettings={(s) =>
                     commit({
                       ...state,
@@ -867,7 +933,17 @@ export default function App() {
                 audioPoint={audio ? audioPoint : null}
                 onItems={(items) => changeItems(items, "point-drag")}
                 viewport={state.graph.viewport}
-                settings={state.graph.settings}
+                settings={{
+                  ...state.graph.settings,
+                  xStep: String(
+                    results.get("__step-x")?.value ??
+                      state.graph.settings.xStep,
+                  ),
+                  yStep: String(
+                    results.get("__step-y")?.value ??
+                      state.graph.settings.yStep,
+                  ),
+                }}
                 scene={scene}
                 items={state.graph.items}
                 active={active}
@@ -936,7 +1012,7 @@ export default function App() {
                   expressions={engineInput(state).expressions}
                   settings={state.graph.settings}
                   viewport={state.graph.viewport}
-                  onViewport={viewport}
+                  onViewport={(next) => viewport(next, true)}
                   onSettings={graphSettings}
                 />
               )}

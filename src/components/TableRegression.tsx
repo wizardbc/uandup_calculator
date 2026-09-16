@@ -22,6 +22,7 @@ export function TableRegression({
   const [options, setOptions] = useState(false),
     [models, setModels] = useState(false);
   const fit = item.regression!;
+  const residual = fit.residualVariable || result?.residualVariable || "";
   const model = regressionModels[fit.model];
   const parameters = result?.fit
     ? regressionValues(item, result.fit.parameters)
@@ -133,16 +134,14 @@ export function TableRegression({
                 <div className="residual-controls">
                   <MathField
                     label="Residual variable"
-                    latex={fit.residualVariable}
+                    latex={residual}
                     onChange={(residualVariable) =>
                       change({ residualVariable })
                     }
                   />
                   <button
                     onClick={() =>
-                      onExport(
-                        `(${item.headers[fit.xColumn]},${fit.residualVariable})`,
-                      )
+                      onExport(`(${item.headers[fit.xColumn]},${residual})`)
                     }
                   >
                     plot

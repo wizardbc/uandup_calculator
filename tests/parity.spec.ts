@@ -480,7 +480,7 @@ test("computed table columns and regression models recalculate and expose residu
     .poll(() =>
       page.evaluate(() =>
         window.MathAICalculator.getState().graph.items.some(
-          (i) => i.type === "expression" && i.latex === "(x_1,e_{2})",
+          (i) => i.type === "expression" && i.latex === "(x_1,e_{1})",
         ),
       ),
     )
@@ -696,4 +696,135 @@ test("dragging the second literal point preserves the first point", async ({
     }),
   ).toMatch(/^\[\(1,2\),/);
   await expect(page.locator(".expression-error")).toHaveCount(0);
+});
+
+test("axis expressions stay linked to variables until the viewport is moved", async ({
+  page,
+}) => {
+  await inputs(page, ["a=4", "y=x"]);
+  await page
+    .getByRole("button", { name: "Graph Settings", exact: true })
+    .click();
+  const maximum = page.getByRole("textbox", { name: /^X axis maximum/ });
+  await maximum.focus();
+  await page.keyboard.press("ControlOrMeta+A");
+  await page.keyboard.type("a");
+  await page.getByRole("textbox", { name: /^Y axis minimum/ }).focus();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => window.MathAICalculator.getState().graph.viewport.xMax,
+      ),
+    )
+    .toBe(4);
+  await page
+    .getByRole("button", { name: "Graph Settings", exact: true })
+    .click();
+  await page.evaluate(() => {
+    const s = window.MathAICalculator.getState();
+    (s.graph.items[0] as { latex: string }).latex = "a=6";
+    window.MathAICalculator.setState(s);
+  });
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => window.MathAICalculator.getState().graph.viewport.xMax,
+      ),
+    )
+    .toBe(6);
+  await page
+    .getByRole("button", { name: "Graph Settings", exact: true })
+    .click();
+  await expect(page.locator(".axis-bounds").first()).toContainText("a");
+  const step = page.getByRole("textbox", { name: /^X axis step/ });
+  await step.focus();
+  await page.keyboard.type("a/2");
+  await page.getByRole("textbox", { name: /^Y axis minimum/ }).focus();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => window.MathAICalculator.getState().graph.settings.xStep,
+      ),
+    )
+    .toContain("a");
+  await page
+    .getByRole("button", { name: "Graph Settings", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Zoom In", exact: true }).click();
+  const moved = await page.evaluate(
+    () => window.MathAICalculator.getState().graph.viewport.xMax,
+  );
+  await page.evaluate(() => {
+    const s = window.MathAICalculator.getState();
+    (s.graph.items[0] as { latex: string }).latex = "a=8";
+    window.MathAICalculator.setState(s);
+  });
+  await page.waitForTimeout(200);
+  expect(
+    await page.evaluate(
+      () => window.MathAICalculator.getState().graph.viewport.xMax,
+    ),
+  ).toBe(moved);
+});
+
+test("multiple regressions reserve distinct residual names and preserve them after removal", async ({
+  page,
+}) => {
+  await inputs(page, [
+    "e_1=[9,9,9]",
+    "x_1=[1,2,3]",
+    "y_1=[1,3,2]",
+    "y_1~mx_1+b",
+    "y_1~ax_1^2",
+  ]);
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        window.MathAICalculator.getState()
+          .graph.items.filter(
+            (i) => i.type === "expression" && i.latex.includes("~"),
+          )
+          .map((i) => i.type === "expression" && i.residualVariable),
+      ),
+    )
+    .toEqual(["e_{2}", "e_{3}"]);
+  await page.evaluate(() => {
+    const s = window.MathAICalculator.getState();
+    s.graph.items = s.graph.items.filter((i) => i.id !== "parity-3");
+    s.graph.items.push({
+      id: "residual-table",
+      type: "table",
+      headers: ["x_2", "y_2"],
+      values: [
+        ["1", "2"],
+        ["2", "4"],
+        ["3", "3"],
+      ],
+      color: "#2d70b3",
+      hidden: false,
+    });
+    window.MathAICalculator.setState(s);
+  });
+  await page
+    .getByRole("button", { name: "Add Regression", exact: true })
+    .click();
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        window.MathAICalculator.getState()
+          .graph.items.map((i) =>
+            i.type === "expression"
+              ? i.residualVariable
+              : i.regression?.residualVariable,
+          )
+          .filter(Boolean),
+      ),
+    )
+    .toEqual(["e_{3}", "e_{2}"]);
+  await expect(
+    page.locator(".table-regression .residual-controls"),
+  ).toContainText("e2");
+  await expect(
+    page.locator(".custom-regression-result .residual-controls"),
+  ).toContainText("e3");
 });

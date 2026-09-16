@@ -228,6 +228,8 @@ export function Keypad({
   canRedo,
   onClear,
   onSettings,
+  canClear = true,
+  settingsOpen = false,
 }: {
   scientific?: boolean;
   complex?: boolean;
@@ -240,6 +242,8 @@ export function Keypad({
   canRedo?: boolean;
   onClear?: () => void;
   onSettings?: () => void;
+  canClear?: boolean;
+  settingsOpen?: boolean;
 }) {
   const [tab, setTab] = useState<"main" | "abc" | "func">("main");
   const [functions, setFunctions] = useState(false);
@@ -361,12 +365,13 @@ export function Keypad({
           >
             <Icon name="redo" />
           </button>
-          <button className="clear-all" onClick={onClear}>
+          <button className="clear-all" onClick={onClear} disabled={!canClear}>
             clear all
           </button>
           <button
-            className="sci-tool"
+            className={`sci-tool ${settingsOpen ? "selected" : ""}`}
             aria-label="Settings"
+            aria-expanded={settingsOpen}
             onClick={onSettings}
           >
             <Icon name="wrench" size={18} />

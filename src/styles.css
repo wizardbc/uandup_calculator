@@ -2609,8 +2609,33 @@ button:hover:not(:disabled) {
 }
 .scientific-settings {
   top: auto;
-  bottom: 218px;
+  bottom: 217px;
   right: -1px;
+  padding-bottom: 7px;
+  font-size: 15.2px;
+}
+.scientific-settings .text-size {
+  margin-bottom: 10px;
+}
+.scientific-settings .text-size button + button {
+  font-size: 20px;
+}
+.scientific-settings .check {
+  min-height: 17px;
+  line-height: 17px;
+  margin-bottom: 10px;
+}
+.scientific-settings .check input {
+  width: 17px;
+  height: 17px;
+}
+.scientific-settings .mode-toggle {
+  width: 40px;
+  padding: 0 5px;
+  margin-right: -5px;
+}
+.scientific-settings .settings-rule {
+  margin: 0 0 6px;
 }
 .scientific-settings .complex-mode-row {
   min-height: 24px;
@@ -2621,6 +2646,60 @@ button:hover:not(:disabled) {
   bottom: -9px;
   right: 21px;
   transform: rotate(135deg);
+}
+.sci-tool.selected {
+  background: #d5d5d5;
+  border-radius: 4px;
+  color: #123;
+}
+.scientific-keypad-toolbar .clear-all:disabled {
+  color: #ccc;
+}
+@media (min-width: 601px) {
+  .scientific-keypad-toolbar {
+    padding-left: 1px;
+    margin-right: -5px;
+  }
+  .scientific-keypad-toolbar .keypad-tabs {
+    width: 181.65625px;
+  }
+  .scientific-keypad-toolbar .keypad-tabs button {
+    padding: 0;
+    line-height: 40px;
+  }
+  .scientific-keypad-toolbar .keypad-tabs button:nth-child(1) {
+    width: 64.4375px;
+  }
+  .scientific-keypad-toolbar .keypad-tabs button:nth-child(2) {
+    width: 56.671875px;
+  }
+  .scientific-keypad-toolbar .keypad-tabs button:nth-child(3) {
+    width: 60.546875px;
+  }
+  .scientific-keypad-toolbar .angle-small {
+    width: 87px;
+    margin: 9px 10px 0 5px;
+  }
+  .scientific-keypad-toolbar .angle-small button {
+    flex: 1;
+    padding: 0;
+  }
+  .scientific-keypad-toolbar .sci-tool {
+    margin-top: 5px;
+    margin-right: 10px;
+    min-width: 0;
+  }
+  .scientific-keypad-toolbar .clear-all {
+    width: 74.09375px;
+    flex: none;
+    padding: 0;
+    margin: 5px 10px 0 0;
+  }
+  .scientific-keypad-toolbar .sci-tool:last-child {
+    flex: none;
+    width: 49.078125px;
+    margin-right: 5px;
+  }
 }
 .distribution-summary {
   margin-bottom: 0;

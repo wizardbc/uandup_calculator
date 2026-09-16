@@ -157,3 +157,33 @@ test("assigned comprehension binds its iteration variable", () =>
     calculate(String.raw`L=n^2\operatorname{for}n=[1...4]`).display,
     "[1, 4, 9, 16]",
   ));
+
+test("regressions skip existing residual definitions without replacing their values", () => {
+  const result = JSON.parse(
+    engine.calculate(
+      JSON.stringify({
+        expressions: [
+          "e_1=[9,9,9]",
+          "x_1=[1,2,3]",
+          "y_1=[1,3,2]",
+          "y_1~mx_1+b",
+          "y_1~ax_1^2",
+          "total(e_1)",
+          "total(e_2)",
+        ].map((latex, i) => ({ id: String(i), latex })),
+        viewport: {
+          xMin: -10,
+          xMax: 10,
+          yMin: -10,
+          yMax: 10,
+          width: 800,
+          height: 800,
+        },
+      }),
+    ),
+  );
+  assert.equal(result.rows[3].residualVariable, "e_{2}");
+  assert.equal(result.rows[4].residualVariable, "e_{3}");
+  assert.equal(result.rows[5].value, 27);
+  assert.ok(Math.abs(result.rows[6].value) < 1e-8);
+});

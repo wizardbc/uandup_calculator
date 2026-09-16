@@ -7,8 +7,9 @@ export class EngineClient {
   private pending: { id: number; input: EngineInput } | null = null;
   private timeout: ReturnType<typeof setTimeout> | undefined;
   private latestId = 0;
+  private activeInput: EngineInput | null = null;
   constructor(
-    private result: (scene: Scene) => void,
+    private result: (scene: Scene, input: EngineInput) => void,
     private error: (message: string) => void,
   ) {}
   private start() {
@@ -21,7 +22,8 @@ export class EngineClient {
       clearTimeout(this.timeout);
       this.activeId = null;
       if (data.id === this.latestId) {
-        if (data.scene) this.result({ ...data.scene, revision: data.id });
+        if (data.scene && this.activeInput)
+          this.result({ ...data.scene, revision: data.id }, this.activeInput);
         else this.error(data.error ?? "Calculation failed.");
       }
       this.dispatch();
@@ -44,6 +46,7 @@ export class EngineClient {
     const task = this.pending;
     this.pending = null;
     this.activeId = task.id;
+    this.activeInput = task.input;
     this.worker!.postMessage({
       ...task,
       base: new URL(import.meta.env.BASE_URL, location.href).href,

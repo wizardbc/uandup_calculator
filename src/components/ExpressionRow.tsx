@@ -106,7 +106,7 @@ export function ExpressionRow({
                     yColumn: 1,
                     color: "#6042a6",
                     hidden: false,
-                    residualVariable: `e_{${index + 1}}`,
+                    residualVariable: "",
                   },
                 })
               }
@@ -735,7 +735,7 @@ function TableEditor({
                         yColumn: columnMenu,
                         color: "#6042a6",
                         hidden: false,
-                        residualVariable: "e_{1}",
+                        residualVariable: "",
                       },
                     });
                     setColumnMenu(null);
