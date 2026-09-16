@@ -288,7 +288,7 @@ export function ExpressionRow({
             {result?.domain && (
               <div className="curve-domain">
                 <MathField
-                  latex={result.domain.min}
+                  latex={item.domainMin ?? result.domain.min}
                   label={`domain ${result.domain.variable} Minimum`}
                   onChange={(domainMin) => onChange({ ...item, domainMin })}
                 />
@@ -296,7 +296,7 @@ export function ExpressionRow({
                   latex={`\\le ${result.domain.variable === "theta" ? "\\theta" : "t"}\\le`}
                 />
                 <MathField
-                  latex={result.domain.max}
+                  latex={item.domainMax ?? result.domain.max}
                   label={`domain ${result.domain.variable} Maximum`}
                   onChange={(domainMax) => onChange({ ...item, domainMax })}
                 />

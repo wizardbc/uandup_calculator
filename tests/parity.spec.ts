@@ -377,7 +377,16 @@ test("curve domains edit independently and a radius variable remains a number", 
         return row.type === "expression" ? row.domainMax : "";
       }),
     )
-    .toContain("pi");
+    .toBe(String.raw`2\pi`);
+  // A later scene must not overwrite the domain currently being edited.
+  await expect(
+    page
+      .locator(".curve-domain")
+      .first()
+      .locator(".math-field")
+      .last()
+      .locator(".dcg-mq-root-block"),
+  ).toHaveText(/2\s*π/);
   await page.getByRole("textbox", { name: /^domain theta Maximum/ }).focus();
   await expect(
     page.getByRole("textbox", { name: /^domain theta Maximum/ }),
