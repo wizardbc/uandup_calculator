@@ -1,5 +1,9 @@
 # U&UP Calculator
 
+**[Open the live calculator](https://wizardbc.github.io/uandup_calculator/)** · [Scientific mode](https://wizardbc.github.io/uandup_calculator/?mode=scientific)
+
+The public demo runs on GitHub Pages and does not depend on a local development server. Updates to `main` deploy automatically after the build and tests pass.
+
 A self-hosted graphing and scientific calculator for SAT practice interfaces. React and TypeScript provide the interface; a Rust/WebAssembly engine runs in a dedicated Web Worker. All calculation runs in the browser. No API key, paid calculator service, analytics, or external runtime request is required.
 
 The desktop layout follows measurements of the public College Board testing calculators. It uses the U&UP identity and independently written interface code. This is an independent project, with no affiliation or endorsement from College Board or Desmos.
