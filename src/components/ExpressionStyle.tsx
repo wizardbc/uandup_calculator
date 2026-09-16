@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { ThemeContext, visiblePlotColor } from "../theme";
+import { useContext, useEffect, useRef } from "react";
 import {
   COLORS,
   type Expression,
@@ -32,6 +33,7 @@ export function ExpressionStyle({
   table?: boolean;
   onAddRegression?: () => void;
 }) {
+  const theme = useContext(ThemeContext);
   const root = useRef<HTMLDivElement>(null);
   const style = item.plotStyle ?? {};
   const dragMode = style.dragMode ?? result?.defaultDragMode ?? "none";
@@ -242,7 +244,7 @@ export function ExpressionStyle({
             className={
               !item.colorLatex && item.color === color ? "selected" : ""
             }
-            style={{ background: color }}
+            style={{ background: visiblePlotColor(color, theme) }}
             onClick={() => onChange({ ...item, color, colorLatex: undefined })}
           >
             {!item.colorLatex && item.color === color && (
@@ -266,8 +268,8 @@ export function ExpressionStyle({
             style={{
               background:
                 colors.length === 1
-                  ? colors[0]
-                  : `linear-gradient(90deg,${colors.join(",")})`,
+                  ? visiblePlotColor(colors[0], theme)
+                  : `linear-gradient(90deg,${colors.map((c) => visiblePlotColor(c, theme)).join(",")})`,
             }}
             onClick={() => onChange({ ...item, colorLatex: name })}
           />

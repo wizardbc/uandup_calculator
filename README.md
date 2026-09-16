@@ -67,6 +67,14 @@ Replies preserve `requestId`, `channel`, and `version`. State contains independe
 
 For same-origin integration and diagnostics, `window.MathAICalculator` (also available as `window.UandupCalculator` for existing integrations) exposes `getState()`, `setState(state)`, `reset()`, and `getDiagnostics()`. Diagnostics report actual WASM execution time, engine readiness, and engine errors. The evaluation counter counts interpreter visits, not compiled numeric instructions.
 
+## Appearance
+
+The first visit follows the device's system appearance: **Light** or **Dark**. Open Graph Settings (the wrench), or Settings in scientific mode, to select **Light, Dark, Classic, or High contrast**. Classic preserves the previous calculator layout and colors. The other themes keep the same controls and keypad arrangement while changing colors, graph paper and stroke contrast.
+
+A manual choice is saved in this browser and takes priority over the system appearance. Check **Use system setting** to resume automatic selection, including live system appearance changes. If browser storage is blocked, theme selection still works for the current page. Themes are independent of expressions, calculator state and undo history.
+
+For embedding, `?theme=light`, `?theme=dark`, `?theme=classic`, or `?theme=high-contrast` overrides the saved preference for that page without saving it. This also works with `?embed=1`. Invalid theme values are ignored. Reverse contrast remains available within each theme; stored plot colors remain unchanged when their displayed colors are adjusted for visibility.
+
 ## Implemented behavior
 
 - Independent graphing and scientific histories and angle/complex modes, undo/redo, DesQuill mathematical editing, physical and on-screen keyboards, sliders, animation and state restoration.

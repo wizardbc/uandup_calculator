@@ -4,8 +4,12 @@ import { formatCoordinate } from "../graph/render";
 import { ConstantField } from "./ConstantField";
 import { MathText } from "./MathField";
 import { evaluateConstant } from "../engine/constants";
+import { THEMES, isTheme, type Theme } from "../theme";
 
 export function Settings({
+  theme,
+  followsSystem,
+  onTheme,
   settings,
   viewport,
   onSettings,
@@ -13,6 +17,9 @@ export function Settings({
   scientific = false,
   expressions = [],
 }: {
+  theme: Theme;
+  followsSystem: boolean;
+  onTheme: (theme: Theme | null) => void;
   settings: GraphSettings;
   viewport: Viewport;
   onSettings: (settings: GraphSettings) => void;
@@ -352,6 +359,30 @@ export function Settings({
           </button>
         </div>
       )}
+      <label className="theme-control">
+        <span>Theme</span>
+        <select
+          aria-label="Color theme"
+          value={theme}
+          onChange={(event) => {
+            if (isTheme(event.target.value)) onTheme(event.target.value);
+          }}
+        >
+          {THEMES.map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="check system-theme-control">
+        <input
+          type="checkbox"
+          checked={followsSystem}
+          onChange={(e) => onTheme(e.target.checked ? null : theme)}
+        />
+        Use system setting
+      </label>
     </div>
   );
 }

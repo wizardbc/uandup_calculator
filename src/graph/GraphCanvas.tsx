@@ -15,6 +15,7 @@ import {
 } from "./render";
 import { dragPoint } from "./pointDrag";
 import { MathText } from "../components/MathField";
+import { visiblePlotColor, type ResolvedTheme } from "../theme";
 
 export function zoomViewport(
   view: Viewport,
@@ -58,6 +59,7 @@ export function panViewport(v: Viewport, dx: number, dy: number): Viewport {
   };
 }
 export function GraphCanvas({
+  theme = "classic",
   viewport,
   settings,
   scene,
@@ -69,6 +71,7 @@ export function GraphCanvas({
   onItems,
   audioPoint,
 }: {
+  theme?: ResolvedTheme;
   viewport: Viewport;
   settings: GraphSettings;
   scene: Scene | null;
@@ -155,8 +158,17 @@ export function GraphCanvas({
     if (!context) return;
     const dpr = window.devicePixelRatio || 1;
     context.setTransform(dpr, 0, 0, dpr, 0, 0);
-    renderGraph(context, viewport, settings, scene, items, active, shownTrace);
-  }, [viewport, settings, scene, items, active, shownTrace]);
+    renderGraph(
+      context,
+      viewport,
+      settings,
+      scene,
+      items,
+      active,
+      shownTrace,
+      theme,
+    );
+  }, [viewport, settings, scene, items, active, shownTrace, theme]);
   useEffect(() => {
     const element = host.current!;
     const wheel = (event: WheelEvent) => {
@@ -461,10 +473,12 @@ export function GraphCanvas({
                         styleValue(row, "labelSize", index, 1) * 20,
                       ),
                     ),
-                    color:
+                    color: visiblePlotColor(
                       row.strokeColors?.[index] ??
-                      row.strokeColors?.[0] ??
-                      item.color,
+                        row.strokeColors?.[0] ??
+                        item.color,
+                      theme,
+                    ),
                     transform: `translate(${left ? "-100%" : right ? "0" : "-50%"},${above ? "-100%" : below ? "0" : "-50%"}) rotate(${styleValue(row, "labelAngle", index, 0)}rad)`,
                     textShadow:
                       style.labelOutline === false ? "none" : undefined,

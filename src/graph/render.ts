@@ -8,6 +8,7 @@ import type {
   RowResult,
 } from "../types";
 import { COLORS } from "../types";
+import { graphPalette, visiblePlotColor, type ResolvedTheme } from "../theme";
 export function graphItem(items: Item[], id: string): Item | undefined {
   const [owner, column] = id.split(/:plot:|:regression/);
   const item = items.find((i) => i.id === owner);
@@ -138,11 +139,12 @@ export function renderGraph(
   items: Item[],
   selected: string | null,
   trace: Interest | null,
+  theme: ResolvedTheme = "classic",
 ) {
   const { width, height } = view;
-  const dark = settings.reverseContrast;
+  const palette = graphPalette(theme, settings.reverseContrast);
   ctx.clearRect(0, 0, width, height);
-  ctx.fillStyle = dark ? "#161616" : "#fff";
+  ctx.fillStyle = palette.paper;
   ctx.fillRect(0, 0, width, height);
   const x0 = view.xLog ? 0 : px(0, view),
     y0 = view.yLog ? height : py(0, view);
@@ -167,13 +169,7 @@ export function renderGraph(
       if (logMax - logMin > 600) return;
       ctx.beginPath();
       ctx.lineWidth = 1;
-      ctx.strokeStyle = dark
-        ? major
-          ? "#777"
-          : "#3b3b3b"
-        : major
-          ? "#999"
-          : "#e0e0e0";
+      ctx.strokeStyle = major ? palette.major : palette.minor;
       for (let power = logMin; power <= logMax; power++)
         for (let m = major ? 1 : 2; m <= (major ? 1 : 9); m++) {
           const n = m * 10 ** power;
@@ -199,13 +195,7 @@ export function renderGraph(
     )
       return;
     ctx.beginPath();
-    ctx.strokeStyle = dark
-      ? major
-        ? "#777"
-        : "#3b3b3b"
-      : major
-        ? "#999"
-        : "#e0e0e0";
+    ctx.strokeStyle = major ? palette.major : palette.minor;
     ctx.lineWidth = 1;
     for (let i = Math.ceil(min / step); i <= Math.floor(max / step); i++) {
       const n = i * step;
@@ -222,7 +212,7 @@ export function renderGraph(
   }
   if (settings.grid) {
     if (settings.polar) {
-      ctx.strokeStyle = dark ? "#666" : "#bbb";
+      ctx.strokeStyle = palette.polar;
       ctx.lineWidth = 1;
       const maxRadius = Math.max(
         Math.hypot(view.xMin, view.yMin),
@@ -262,7 +252,7 @@ export function renderGraph(
       lines(sy, view.yMin, view.yMax, false, true);
     }
   }
-  ctx.strokeStyle = dark ? "#eee" : "#000";
+  ctx.strokeStyle = palette.ink;
   ctx.lineWidth = 1.4;
   ctx.beginPath();
   if (settings.xAxis) {
@@ -299,14 +289,14 @@ export function renderGraph(
   ) => {
     ctx.textAlign = align;
     const m = ctx.measureText(text).width;
-    ctx.fillStyle = dark ? "#161616" : "#fff";
+    ctx.fillStyle = palette.paper;
     ctx.fillRect(
       x - (align === "right" ? m : align === "center" ? m / 2 : 0) - 1,
       y - fontSize / 2,
       m + 2,
       fontSize,
     );
-    ctx.fillStyle = dark ? "#eee" : "#000";
+    ctx.fillStyle = palette.ink;
     ctx.fillText(text, x, y);
   };
   if (settings.axisNumbers) {
@@ -413,8 +403,12 @@ export function renderGraph(
       const style = itemPlotStyle(item, row.id);
       const defaultWidth =
         item.type === "expression" ? (item.lineWidth ?? 2.5) : 2.5;
-      ctx.strokeStyle = row.strokeColors?.[0] ?? item.color;
-      ctx.fillStyle = row.strokeColors?.[0] ?? item.color;
+      // Resolve each distinct row color once, including lists of many points.
+      const fallbackColor = visiblePlotColor(item.color, theme);
+      const plotColors = row.strokeColors?.map((color) =>
+        visiblePlotColor(color, theme),
+      );
+      ctx.strokeStyle = ctx.fillStyle = plotColors?.[0] ?? fallbackColor;
       ctx.lineWidth = defaultWidth;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
@@ -431,8 +425,8 @@ export function renderGraph(
         )
           continue;
         ctx.strokeStyle = ctx.fillStyle =
-          row.strokeColors?.[row.strokeColors.length === 1 ? 0 : objectIndex] ??
-          item.color;
+          plotColors?.[plotColors.length === 1 ? 0 : objectIndex] ??
+          fallbackColor;
         const thickness = Math.min(
           1000,
           Math.max(0, styleValue(row, "lineWidth", objectIndex, defaultWidth)),
@@ -498,8 +492,8 @@ export function renderGraph(
             )
               break;
             ctx.strokeStyle = ctx.fillStyle =
-              row.strokeColors?.[row.strokeColors.length === 1 ? 0 : index] ??
-              item.color;
+              plotColors?.[plotColors.length === 1 ? 0 : index] ??
+              fallbackColor;
             ctx.globalAlpha = Math.min(
               1,
               Math.max(0, styleValue(row, "pointOpacity", index, 1)),
@@ -576,8 +570,8 @@ export function renderGraph(
     }
   }
   if (trace) {
-    ctx.fillStyle = "#000";
-    ctx.strokeStyle = "#fff";
+    ctx.fillStyle = palette.trace;
+    ctx.strokeStyle = palette.traceOutline;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(px(trace.x, view), py(trace.y, view), 5, 0, Math.PI * 2);

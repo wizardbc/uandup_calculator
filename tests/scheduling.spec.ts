@@ -37,13 +37,16 @@ test("rapid edits replace pending work and never display an obsolete result", as
       if (value) probe.displayed.push(value);
     }).observe(document, { subtree: true, childList: true, attributes: true });
   });
+  // Hold a completed Worker response without letting the real 5-second
+  // watchdog expire on a busy test host. Advance each edit by one frame.
+  await page.clock.install({ time: new Date("2026-01-01T00:00:00Z") });
   await page.goto("/");
   await page.waitForFunction(
     () => window.MathAICalculator?.getDiagnostics().ready,
   );
-  await page.evaluate(async () => {
-    await new Promise(requestAnimationFrame);
-    await new Promise(requestAnimationFrame);
+  await page.clock.pauseAt(new Date("2026-01-01T00:01:00Z"));
+  await page.clock.runFor(32);
+  await page.evaluate(() => {
     const probe = (window as any).calculationQueueProbe;
     probe.recording = probe.hold = true;
     const state = window.MathAICalculator.getState();
@@ -58,17 +61,32 @@ test("rapid edits replace pending work and never display an obsolete result", as
     ];
     window.MathAICalculator.setState(state);
   });
-  await page.waitForFunction(
-    () => (window as any).calculationQueueProbe.held.length === 1,
-  );
-  await page.evaluate(async () => {
-    for (let i = 2; i <= 12; i++) {
+  await page.clock.runFor(16);
+  await expect
+    .poll(() =>
+      page.evaluate(() => (window as any).calculationQueueProbe.held.length),
+    )
+    .toBe(1);
+  for (let i = 2; i <= 12; i++) {
+    await page.evaluate((i) => {
       const state = window.MathAICalculator.getState();
       (state.graph.items[0] as { latex: string }).latex = `1000+${i}`;
       window.MathAICalculator.setState(state);
-      await new Promise(requestAnimationFrame);
-    }
-  });
+    }, i);
+    await page.clock.runFor(16);
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            (
+              window.MathAICalculator.getState().graph.items[0] as {
+                latex: string;
+              }
+            ).latex,
+        ),
+      )
+      .toBe(`1000+${i}`);
+  }
   expect(
     await page.evaluate(() => (window as any).calculationQueueProbe.sent),
   ).toEqual(["1000+1"]);

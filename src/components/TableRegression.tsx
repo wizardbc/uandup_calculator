@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { ThemeContext, visiblePlotColor } from "../theme";
+import { useContext, useState } from "react";
 import type { RowResult, Table } from "../types";
 import {
   regressionModels,
@@ -19,6 +20,7 @@ export function TableRegression({
   onChange: (item: Table) => void;
   onExport: (latex: string) => void;
 }) {
+  const theme = useContext(ThemeContext);
   const [options, setOptions] = useState(false),
     [models, setModels] = useState(false);
   const fit = item.regression!;
@@ -37,7 +39,10 @@ export function TableRegression({
       <button
         className="regression-graph-icon"
         aria-label={`${fit.hidden ? "Show" : "Hide"} Regression`}
-        style={{ background: fit.color, opacity: fit.hidden ? 0.4 : 1 }}
+        style={{
+          background: visiblePlotColor(fit.color, theme),
+          opacity: fit.hidden ? 0.4 : 1,
+        }}
         onClick={() => change({ hidden: !fit.hidden })}
       >
         <Icon name="curve" size={24} />

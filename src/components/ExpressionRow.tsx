@@ -1,3 +1,4 @@
+import { ThemeContext, visiblePlotColor } from "../theme";
 import { RegressionResult } from "./RegressionResult";
 import { Slider } from "./Slider";
 import { ListResult } from "./ListResult";
@@ -64,6 +65,7 @@ export function ExpressionRow({
   onZoomFit?: () => void;
   tablePointCounts?: number[];
 }) {
+  const theme = useContext(ThemeContext);
   const [styleOpen, setStyleOpen] = useState(false);
   const { code: brailleCode } = useContext(BrailleContext);
   const held = useRef(false);
@@ -164,7 +166,10 @@ export function ExpressionRow({
             style={{
               backgroundColor: result?.error
                 ? "#c74440"
-                : (result?.strokeColors?.[0] ?? item.color),
+                : visiblePlotColor(
+                    result?.strokeColors?.[0] ?? item.color,
+                    theme,
+                  ),
             }}
             aria-label={
               result?.error
@@ -472,6 +477,7 @@ function TableEditor({
   onFocus: () => void;
   register: (id: string, api: MathAPI | null) => void;
 }) {
+  const theme = useContext(ThemeContext);
   const root = useRef<HTMLDivElement>(null);
   const [columnMenu, setColumnMenu] = useState<number | null>(null);
   const [anchor, setAnchor] = useState({ left: 94, top: 60 });
@@ -572,9 +578,11 @@ function TableEditor({
                 <button
                   className="table-color"
                   style={{
-                    background:
+                    background: visiblePlotColor(
                       item.columnColors?.[c] ??
-                      (c === 1 ? item.color : COLORS[c % COLORS.length]),
+                        (c === 1 ? item.color : COLORS[c % COLORS.length]),
+                      theme,
+                    ),
                     opacity: item.columnHidden?.[c]?.valueOf() ? 0.35 : 1,
                   }}
                   aria-label={

@@ -25,3 +25,39 @@ test("small screen graphing and scientific keypads remain usable", async ({
   await page.getByRole("button", { name: "Enter", exact: true }).click();
   await expect(page.getByLabel("Result 81", { exact: true })).toBeVisible();
 });
+
+test("appearance controls remain reachable on short graphing and scientific screens", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.goto("/?theme=classic");
+  await page.waitForFunction(
+    () => window.MathAICalculator?.getDiagnostics().ready,
+  );
+  for (const mode of ["graphing", "scientific"]) {
+    if (mode === "scientific") {
+      await page.keyboard.press("Escape");
+      await page.getByRole("button", { name: "Switch calculator" }).click();
+      await page
+        .getByRole("button", { name: "Scientific Calculator", exact: true })
+        .click();
+    }
+    await page
+      .getByRole("button", {
+        name: mode === "graphing" ? "Graph Settings" : "Settings",
+        exact: true,
+      })
+      .click();
+    await page.getByLabel("Color theme").scrollIntoViewIfNeeded();
+    await page
+      .getByLabel("Color theme")
+      .selectOption(mode === "graphing" ? "dark" : "high-contrast");
+    await page.getByLabel("Use system setting").check();
+    const box = await page.locator(".settings-panel").boundingBox();
+    expect(box!.y).toBeGreaterThanOrEqual(0);
+    expect(box!.y + box!.height).toBeLessThanOrEqual(390);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBe(844);
+  }
+});
