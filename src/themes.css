@@ -232,8 +232,7 @@
     .theme-control,
     .theme-control select,
     .popover input:not([type="range"]),
-    .popover select,
-    .braille-field input
+    .popover select
   ) {
   background-color: var(--surface);
   color: var(--ink);
@@ -296,7 +295,6 @@
     .inline-error,
     .scientific-error,
     .expression-error,
-    .braille-error,
     .slider-error,
     [aria-invalid="true"]
   ) {

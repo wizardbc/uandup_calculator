@@ -1418,6 +1418,13 @@ button:hover:not(:disabled) {
 .large-text .expression-content > .math-field {
   font-size: 26px;
 }
+.large-text .scientific-expression .math-field,
+.large-text .scientific-answer {
+  font-size: 24px;
+}
+.large-text .scientific-error {
+  font-size: 16px;
+}
 .embedded {
   --header-height: 0px;
 }
@@ -2201,62 +2208,6 @@ button:hover:not(:disabled) {
 .observed-table td span {
   color: #777;
   font-size: 15px;
-}
-.braille-field {
-  display: inline-block;
-  min-width: 30px;
-  max-width: 100%;
-}
-.braille-field input {
-  width: 100%;
-  min-width: 30px;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font:
-    24px "DejaVu Sans",
-    sans-serif;
-  padding: 0;
-  outline: 0;
-}
-.expression-content > .braille-field {
-  display: block;
-  padding: 16px;
-  min-height: 54px;
-}
-.braille-field input:focus {
-  outline: 0;
-}
-.braille-field:focus-within {
-  box-shadow: inset 0 -1px #2d70e4;
-}
-.braille-error {
-  display: block;
-  font:
-    12px Arial,
-    sans-serif;
-  color: #b22;
-  padding-top: 5px;
-}
-.braille-text {
-  font:
-    24px "DejaVu Sans",
-    sans-serif;
-}
-.braille-options {
-  margin: 2px 0 0 28px;
-}
-.braille-options .scale-choice {
-  width: 100%;
-}
-.braille-options .scale-choice button {
-  flex: 1;
-}
-.braille-options p {
-  font-size: 14px;
-  color: #666;
-  line-height: 18px;
-  margin: 4px 0 0;
 }
 .settings-panel .text-size {
   margin-bottom: 3px;

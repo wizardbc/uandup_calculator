@@ -127,6 +127,7 @@ export function Settings({
         <button
           className={!settings.largeText ? "selected" : ""}
           aria-label="Normal text size"
+          aria-pressed={!settings.largeText}
           onClick={() => change("largeText", false)}
         >
           A
@@ -134,48 +135,12 @@ export function Settings({
         <button
           className={settings.largeText ? "selected" : ""}
           aria-label="Large text size"
+          aria-pressed={settings.largeText}
           onClick={() => change("largeText", true)}
         >
           A
         </button>
       </div>
-      <label className="check">
-        <input
-          type="checkbox"
-          checked={settings.braille !== "none"}
-          onChange={(e) =>
-            change("braille", e.target.checked ? "Nemeth" : "none")
-          }
-        />
-        Braille Mode
-      </label>
-      {settings.braille !== "none" && (
-        <div className="braille-options">
-          <div className="scale-choice">
-            {(["Nemeth", "UEB"] as const).map((code) => (
-              <button
-                key={code}
-                className={settings.braille === code ? "selected" : ""}
-                onClick={() => change("braille", code)}
-              >
-                {code}
-              </button>
-            ))}
-          </div>
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={settings.sixKey}
-              onChange={(e) => change("sixKey", e.target.checked)}
-            />
-            Six Key Braille Input
-          </label>
-          <p>
-            Use a refreshable Braille display, or just type Braille with a
-            keyboard.
-          </p>
-        </div>
-      )}
       {!scientific && (
         <>
           <div className="settings-rule" />

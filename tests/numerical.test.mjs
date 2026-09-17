@@ -1,20 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import temml from "temml";
 import initNumeric, { CalculatorEngine } from "../public/wasm/uandup_engine.js";
-import initBraille, {
-  mathml_to_braille,
-} from "../public/wasm/mathai_accessibility.js";
-import { brailleToLatex } from "../src/accessibility/braille.ts";
 await initNumeric({
   module_or_path: await readFile(
     new URL("../public/wasm/uandup_engine_bg.wasm", import.meta.url),
-  ),
-});
-await initBraille({
-  module_or_path: await readFile(
-    new URL("../public/wasm/mathai_accessibility_bg.wasm", import.meta.url),
   ),
 });
 const engine = new CalculatorEngine();
@@ -42,52 +32,6 @@ function calculate(latex) {
   assert.ok(!result.rows[1].error, `${latex}: ${result.rows[1].error}`);
   return result.rows[1];
 }
-const cases = [
-  String.raw`\frac{1+2}{3+4}`,
-  String.raw`\frac{1}{\frac{2}{3}}`,
-  String.raw`\sqrt[3]{8}`,
-  String.raw`\sqrt{\sqrt{16}}`,
-  String.raw`2^{3+4}`,
-  String.raw`2^{3^2}`,
-  String.raw`\sin(2)+\cos(3)`,
-  String.raw`\log_{2}(8)`,
-  String.raw`\left|3-7\right|`,
-  String.raw`\frac{1}{2}+\frac{3}{4}`,
-  String.raw`\pi+\theta`,
-  String.raw`3\le 4`,
-  String.raw`3\ge 4`,
-  String.raw`3\ne 4`,
-  String.raw`[1,2,3]`,
-  String.raw`2.3\times 4`,
-  String.raw`3\div 4`,
-  String.raw`25\%`,
-  String.raw`(1,2)`,
-  String.raw`\int_{0}^{1}x^2dx`,
-  String.raw`\sum_{n=1}^{4}n^2`,
-  String.raw`\operatorname{normaldist}(0,1).\operatorname{cdf}(1)`,
-];
-for (const code of ["Nemeth", "UEB"])
-  for (const latex of cases)
-    test(`${code} round trip preserves value: ${latex}`, () => {
-      const mathml = temml.renderToString(latex, {
-        throwOnError: true,
-        trust: false,
-        maxExpand: 1000,
-      });
-      const cells = mathml_to_braille(mathml, code);
-      const back = brailleToLatex(cells, code);
-      const before = calculate(latex),
-        after = calculate(back);
-      if (before.value !== null)
-        assert.ok(
-          after.value !== null &&
-            Math.abs(before.value - after.value) <=
-              1e-10 * (1 + Math.abs(before.value)),
-          `${latex} -> ${cells} -> ${back}: ${before.value} != ${after.value}`,
-        );
-      else assert.equal(after.display, before.display);
-    });
-
 const { tableExpressions } = await import("../src/engine/tables.ts");
 const models = {
   linear: (x) => 2 * x + 3,

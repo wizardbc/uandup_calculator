@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, rmSync } from "node:fs";
 
 function run(command, args) {
   const result = spawnSync(command, args, { stdio: "inherit" });
@@ -9,6 +9,8 @@ function run(command, args) {
     );
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
+// Rebuild generated assets so retired modules cannot enter a new distribution.
+rmSync("public/wasm", { recursive: true, force: true });
 mkdirSync("public/wasm", { recursive: true });
 run("cargo", [
   "build",
@@ -27,22 +29,4 @@ run("wasm-bindgen", [
   "public/wasm",
   "--out-name",
   "uandup_engine",
-]);
-run("cargo", [
-  "build",
-  "--locked",
-  "--release",
-  "--target",
-  "wasm32-unknown-unknown",
-  "--manifest-path",
-  "accessibility/Cargo.toml",
-]);
-run("wasm-bindgen", [
-  "accessibility/target/wasm32-unknown-unknown/release/mathai_accessibility.wasm",
-  "--target",
-  "web",
-  "--out-dir",
-  "public/wasm",
-  "--out-name",
-  "mathai_accessibility",
 ]);

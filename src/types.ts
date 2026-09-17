@@ -65,8 +65,6 @@ export type GraphSettings = {
   largeText: boolean;
   degrees: boolean;
   complex: boolean;
-  braille: "none" | "Nemeth" | "UEB";
-  sixKey: boolean;
   lockViewport: boolean;
   xLog: boolean;
   yLog: boolean;
@@ -310,8 +308,6 @@ export const DEFAULT_SETTINGS: GraphSettings = {
   largeText: false,
   degrees: false,
   complex: false,
-  braille: "none",
-  sixKey: false,
   lockViewport: false,
   xLog: false,
   yLog: false,

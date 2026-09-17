@@ -24,8 +24,6 @@ import { ExpressionRow } from "./components/ExpressionRow";
 import { Keypad, type KeyAction } from "./components/Keypad";
 import { Settings } from "./components/Settings";
 import { InferenceWizard } from "./components/InferenceWizard";
-import { BrailleContext } from "./accessibility/context";
-import { BrailleText } from "./components/BrailleField";
 import { Icon } from "./components/Icons";
 import { GraphCanvas, zoomViewport } from "./graph/GraphCanvas";
 import { installEmbed, validateState } from "./state";
@@ -491,653 +489,637 @@ export default function App() {
     : state.graph.settings;
   return (
     <ThemeContext.Provider value={theme}>
-      <BrailleContext.Provider
-        value={{ code: settings.braille, sixKey: settings.sixKey }}
+      <div
+        data-theme={theme}
+        className={`calculator ${scientific ? "scientific-mode" : "graphing-mode"} ${settings.largeText ? "large-text" : ""} ${new URLSearchParams(location.search).get("embed") === "1" ? "embedded" : ""}`}
       >
-        <div
-          data-theme={theme}
-          className={`calculator ${scientific ? "scientific-mode" : "graphing-mode"} ${settings.largeText ? "large-text" : ""} ${new URLSearchParams(location.search).get("embed") === "1" ? "embedded" : ""}`}
-        >
-          <header className="app-header">
-            <a
-              className="wordmark"
-              aria-label="About MathAI — WebAssembly, licenses and source"
-              href="./licenses.html"
-              target="_blank"
-              rel="noreferrer"
+        <header className="app-header">
+          <a
+            className="wordmark"
+            aria-label="About MathAI — WebAssembly, licenses and source"
+            href="./licenses.html"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <img src="./mathai-logo.png" alt="MathAI" />
+          </a>
+          <span className="header-divider" />
+          <div className="mode-switch">
+            <button
+              onClick={() => setModeOpen(!modeOpen)}
+              aria-label="Switch calculator"
+              aria-expanded={modeOpen}
             >
-              <img src="./mathai-logo.png" alt="MathAI" />
-            </a>
-            <span className="header-divider" />
-            <div className="mode-switch">
-              <button
-                onClick={() => setModeOpen(!modeOpen)}
-                aria-label="Switch calculator"
-                aria-expanded={modeOpen}
-              >
-                {scientific ? "Scientific Calculator" : "Graphing Calculator"}
-                <span className="mode-chevron">⌄</span>
-              </button>
-              {modeOpen && (
-                <div className="mode-menu popover">
-                  <button onClick={() => changeMode("graphing")}>
-                    <Icon name="curve" size={19} />
-                    Graphing Calculator{!scientific && " ✓"}
-                  </button>
-                  <button onClick={() => changeMode("scientific")}>
-                    <Icon name="keyboard" size={19} />
-                    Scientific Calculator{scientific && " ✓"}
-                  </button>
-                </div>
-              )}
-            </div>
-            <span className="header-divider" />
-            <span className="exam-label">Test Practice</span>
-          </header>
-          {scientific ? (
-            <main className="scientific-container">
-              <div className="scientific-calculator">
-                <div className="scientific-display" ref={list}>
-                  <div className="scientific-history-spacer" />
-                  {state.scientific.items.map((item, index) => (
-                    <div
-                      key={item.id}
-                      data-expression-id={item.id}
-                      className={`scientific-expression ${active === item.id ? "active" : ""}`}
-                      onClick={() => focus(item.id)}
-                    >
-                      <MathField
-                        latex={item.latex}
-                        label={`Expression ${index + 1}`}
-                        onChange={(latex) => updateRow({ ...item, latex })}
-                        onFocus={() => {
-                          select(item.id);
-                          lastField.current =
-                            fields.current.get(item.id) ?? null;
-                        }}
-                        onEnter={() => enter(item.id)}
-                        onMove={(d) => {
-                          const row = items[index + d];
-                          if (row) focus(row.id);
-                        }}
-                        onEmptyBackspace={() => {
-                          if (index > 0) remove(item.id);
-                        }}
-                        register={(api) => register(item.id, api)}
-                      />
-                      {results.get(item.id)?.display && (
-                        <span
-                          className="scientific-answer"
-                          aria-label={`Result ${results.get(item.id)!.display}`}
-                        >
-                          {settings.braille === "none" ? (
-                            <MathText
-                              latex={`=${resultLatex(results.get(item.id)!.display!)}`}
-                            />
-                          ) : (
-                            <BrailleText
-                              latex={`=${results.get(item.id)!.display}`}
-                              code={settings.braille}
-                            />
-                          )}
-                        </span>
-                      )}
-                      {results.get(item.id)?.error && (
-                        <span className="scientific-error" role="status">
-                          {results.get(item.id)!.error}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                <Keypad
-                  scientific
-                  complex={settings.complex}
-                  onKey={onKey}
-                  degrees={state.scientific.degrees}
-                  onDegrees={(degrees) =>
-                    commit({
-                      ...state,
-                      scientific: { ...state.scientific, degrees },
-                    })
-                  }
-                  canUndo={history.current.length > 0}
-                  canRedo={future.current.length > 0}
-                  onUndo={undo}
-                  onRedo={redo}
-                  onClear={() => setClearOpen(true)}
-                  canClear={state.scientific.items.some((item) =>
-                    item.latex.trim(),
-                  )}
-                  settingsOpen={settingsOpen}
-                  onSettings={() => setSettingsOpen(!settingsOpen)}
-                />
-                {settingsOpen && (
-                  <Settings
-                    theme={theme}
-                    followsSystem={followsSystem}
-                    onTheme={changeTheme}
-                    expressions={engineInput(state).expressions}
-                    scientific
-                    settings={settings}
-                    viewport={state.graph.viewport}
-                    onViewport={(next) => viewport(next, true)}
-                    onSettings={(s) =>
-                      commit({
-                        ...state,
-                        graph: {
-                          ...state.graph,
-                          settings: {
-                            ...s,
-                            degrees: state.graph.settings.degrees,
-                            complex: state.graph.settings.complex,
-                          },
-                        },
-                        scientific: {
-                          ...state.scientific,
-                          degrees: s.degrees,
-                          complex: s.complex,
-                        },
-                      })
-                    }
-                  />
-                )}
+              {scientific ? "Scientific Calculator" : "Graphing Calculator"}
+              <span className="mode-chevron">⌄</span>
+            </button>
+            {modeOpen && (
+              <div className="mode-menu popover">
+                <button onClick={() => changeMode("graphing")}>
+                  <Icon name="curve" size={19} />
+                  Graphing Calculator{!scientific && " ✓"}
+                </button>
+                <button onClick={() => changeMode("scientific")}>
+                  <Icon name="keyboard" size={19} />
+                  Scientific Calculator{scientific && " ✓"}
+                </button>
               </div>
-            </main>
-          ) : (
-            <main
-              className={`graphing-container ${collapsed ? "list-collapsed" : ""} ${keypad ? "keypad-visible" : ""}`}
-              style={
-                {
-                  "--sidebar-width": `${sidebarWidth}px`,
-                } as React.CSSProperties
-              }
-            >
-              <aside className="expression-panel" aria-label="Expressions">
-                <div className="expression-toolbar">
-                  <button
-                    aria-label="Add Item"
-                    className={addOpen ? "pressed" : ""}
-                    onClick={() => {
-                      setAddOpen(!addOpen);
-                      setSettingsOpen(false);
-                    }}
+            )}
+          </div>
+          <span className="header-divider" />
+          <span className="exam-label">Test Practice</span>
+        </header>
+        {scientific ? (
+          <main className="scientific-container">
+            <div className="scientific-calculator">
+              <div className="scientific-display" ref={list}>
+                <div className="scientific-history-spacer" />
+                {state.scientific.items.map((item, index) => (
+                  <div
+                    key={item.id}
+                    data-expression-id={item.id}
+                    className={`scientific-expression ${active === item.id ? "active" : ""}`}
+                    onClick={() => focus(item.id)}
                   >
-                    <Icon name="plus" />
-                  </button>
-                  <div className="undo-tools">
-                    <button
-                      aria-label="Undo"
-                      disabled={!history.current.length}
-                      onClick={undo}
-                    >
-                      <Icon name="undo" />
-                    </button>
-                    <button
-                      aria-label="Redo"
-                      disabled={!future.current.length}
-                      onClick={redo}
-                    >
-                      <Icon name="redo" />
-                    </button>
-                  </div>
-                  <div className="list-tools">
-                    {state.graph.items.some(
-                      (item) =>
-                        item.type === "expression" &&
-                        /random|shuffle/.test(item.latex),
-                    ) && (
-                      <button
-                        aria-label="Randomize"
-                        title="Randomize"
-                        onClick={() =>
-                          commit({
-                            ...state,
-                            graph: {
-                              ...state.graph,
-                              randomSeed:
-                                ((state.graph.randomSeed ?? 0) + 1) >>> 0,
-                            },
-                          })
-                        }
-                      >
-                        <span className="randomize-icon">⚄</span>
-                      </button>
-                    )}
-                    {scene?.rows.some((row) => row.tones?.length) && (
-                      <button
-                        aria-label={tonesEnabled ? "Mute All" : "Unmute All"}
-                        title={tonesEnabled ? "Mute All" : "Unmute All"}
-                        onClick={toggleTones}
-                      >
-                        <Icon name="audio" size={21} />
-                        {!tonesEnabled && <span className="mute-slash">╱</span>}
-                      </button>
-                    )}
-                    <button
-                      aria-label="Edit Expression List"
-                      className={editList ? "pressed" : ""}
-                      onClick={() => setEditList(!editList)}
-                    >
-                      <Icon name="gear" size={19} />
-                    </button>
-                    <button
-                      aria-label="Hide Expression List"
-                      onClick={() => setCollapsed(true)}
-                    >
-                      <Icon name="collapse" size={22} />
-                    </button>
-                  </div>
-                </div>
-                {addOpen && (
-                  <div className="add-menu popover">
-                    <button onClick={() => addExpression(active ?? undefined)}>
-                      <span className="math-icon">ƒ(x)</span>expression
-                    </button>
-                    <button
-                      onClick={() => {
-                        const n =
-                          state.graph.items.filter((i) => i.type === "table")
-                            .length + 1;
-                        const table: Item = {
-                          id: newId(),
-                          type: "table",
-                          color: COLORS[2],
-                          hidden: false,
-                          headers: [`x_${n}`, `y_${n}`],
-                          values: [["", ""]],
-                        };
-                        const next = [...state.graph.items];
-                        const empty = next.findIndex(
-                          (item) =>
-                            item.type === "expression" && !item.latex.trim(),
-                        );
-                        const at = active
-                          ? Math.max(
-                              0,
-                              next.findIndex((i) => i.id === active),
-                            )
-                          : empty >= 0
-                            ? empty
-                            : next.length;
-                        next.splice(at, 0, table);
-                        changeItems(next);
-                        setAddOpen(false);
-                        setKeypad(true);
-                        focus(`${table.id}:0:0`);
-                      }}
-                    >
-                      <Icon name="table" size={25} />
-                      table
-                    </button>
-                    <button
-                      onClick={() => {
-                        const next = [...state.graph.items];
-                        let row =
-                          next.find(
-                            (i) =>
-                              i.id === active &&
-                              i.type === "expression" &&
-                              !i.latex,
-                          ) ??
-                          next.find((i) => i.type === "expression" && !i.latex);
-                        if (!row) {
-                          row = expression(next.length);
-                          next.push(row);
-                        }
-                        if (next[next.length - 1].id === row.id)
-                          next.push(expression(next.length));
-                        changeItems(next);
-                        setActive(row.id);
-                        setInferenceId(row.id);
-                        setAddOpen(false);
-                        setKeypad(false);
-                      }}
-                    >
-                      <span className="math-icon">χ²</span>inference
-                    </button>
-                  </div>
-                )}
-                {editList && (
-                  <div className="edit-list-bar">
-                    <button onClick={() => setClearOpen(true)}>
-                      Delete All
-                    </button>
-                    <button onClick={() => setEditList(false)}>Done</button>
-                  </div>
-                )}
-                <div className="expression-list" ref={list}>
-                  {state.graph.items.map((item, index) => (
-                    <ExpressionRow
-                      tablePointCounts={(tableData.get(item.id) ?? []).map(
-                        (points) => points.length,
-                      )}
-                      fitResult={results.get(`${item.id}:regression`)}
-                      onZoomFit={() => {
-                        const points = (tableData.get(item.id) ?? []).flat();
-                        if (!points.length) return;
-                        const xs = points.map((p) => p[0]),
-                          ys = points.map((p) => p[1]);
-                        const lo = Math.min(...xs),
-                          hi = Math.max(...xs),
-                          bottom = Math.min(...ys),
-                          top = Math.max(...ys);
-                        const dx = Math.max(1, hi - lo) * 0.1,
-                          dy = Math.max(1, top - bottom) * 0.1;
-                        viewport({
-                          ...state.graph.viewport,
-                          xMin: lo - dx,
-                          xMax: hi + dx,
-                          yMin: bottom - dy,
-                          yMax: top + dy,
-                        });
-                      }}
-                      computed={
-                        item.type === "table"
-                          ? computedColumns(item, state.graph.items)
-                          : []
-                      }
-                      columnResults={
-                        item.type === "table"
-                          ? item.headers.map((_, c) =>
-                              results.get(`${item.id}-col-${c}`),
-                            )
-                          : []
-                      }
-                      key={item.id}
-                      item={item}
-                      index={index}
-                      active={active === item.id}
-                      result={results.get(item.id)}
-                      customColors={(scene?.rows ?? [])
-                        .filter((row) => row.colorName && row.colors?.length)
-                        .map((row) => ({
-                          name: row.colorName!,
-                          colors: row.colors!,
-                        }))}
-                      editList={editList}
-                      onChange={updateRow}
-                      onSelect={() => {
+                    <MathField
+                      latex={item.latex}
+                      label={`Expression ${index + 1}`}
+                      onChange={(latex) => updateRow({ ...item, latex })}
+                      onFocus={() => {
                         select(item.id);
-                        if (item.type === "expression")
-                          lastField.current =
-                            fields.current.get(item.id) ?? null;
+                        lastField.current = fields.current.get(item.id) ?? null;
                       }}
-                      onDelete={() => remove(item.id)}
-                      onExport={(latex) =>
-                        changeItems([
-                          ...state.graph.items,
-                          expression(state.graph.items.length, latex),
-                        ])
-                      }
                       onEnter={() => enter(item.id)}
                       onMove={(d) => {
-                        const row = state.graph.items[index + d];
+                        const row = items[index + d];
                         if (row) focus(row.id);
                       }}
-                      register={register}
-                      onSliderCreate={(names) => {
-                        const next = [...state.graph.items];
-                        for (const name of names)
-                          next.push(expression(next.length, `${name}=1`));
-                        changeItems(next);
+                      onEmptyBackspace={() => {
+                        if (index > 0) remove(item.id);
                       }}
-                      onReorder={(direction) => {
-                        const next = [...state.graph.items];
-                        const to = index + direction;
-                        if (to < 0 || to >= next.length) return;
-                        [next[index], next[to]] = [next[to], next[index]];
-                        changeItems(next);
-                      }}
+                      register={(api) => register(item.id, api)}
                     />
-                  ))}
-                  <button
-                    className="new-expression-row"
-                    aria-label="Add expression"
-                    onClick={() => addExpression()}
-                  >
-                    <span>{state.graph.items.length + 1}</span>
-                  </button>
-                </div>
-                <div className="panel-brand" aria-label="MathAI calculator">
-                  <span>powered by</span>
-                  <a
-                    href="./licenses.html"
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label="About MathAI — WebAssembly, licenses and source"
-                  >
-                    <img src="./mathai-logo.png" alt="MathAI" />
-                  </a>
-                </div>
-                <div
-                  className="panel-resizer"
-                  role="separator"
-                  aria-label="Resize expression list"
-                  aria-orientation="vertical"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === "ArrowLeft" || e.key === "ArrowRight")
-                      setSidebarWidth((w) =>
-                        Math.max(
-                          250,
-                          Math.min(
-                            innerWidth - 200,
-                            w + (e.key === "ArrowLeft" ? -10 : 10),
-                          ),
-                        ),
-                      );
-                  }}
-                  onPointerDown={(e) => {
-                    e.currentTarget.setPointerCapture(e.pointerId);
-                  }}
-                  onPointerMove={(e) => {
-                    if (e.currentTarget.hasPointerCapture(e.pointerId))
-                      setSidebarWidth(
-                        Math.max(
-                          250,
-                          Math.min(window.innerWidth - 200, e.clientX),
-                        ),
-                      );
-                  }}
-                />
-              </aside>
-              <div className="graph-region">
-                <GraphCanvas
-                  theme={theme}
-                  audioPoint={audio ? audioPoint : null}
-                  onItems={(items) => changeItems(items, "point-drag")}
-                  viewport={state.graph.viewport}
-                  settings={{
-                    ...state.graph.settings,
-                    xStep: String(
-                      results.get("__step-x")?.value ??
-                        state.graph.settings.xStep,
-                    ),
-                    yStep: String(
-                      results.get("__step-y")?.value ??
-                        state.graph.settings.yStep,
-                    ),
-                  }}
-                  scene={scene}
-                  items={state.graph.items}
-                  active={active}
-                  onViewport={viewport}
-                  onSelect={setActive}
-                  onInteract={() => {
-                    setSettingsOpen(false);
-                    setAddOpen(false);
-                  }}
-                />
-                {collapsed && (
-                  <button
-                    className="show-expression-list graph-tool"
-                    aria-label="Show Expression List"
-                    onClick={() => setCollapsed(false)}
-                  >
-                    <Icon name="expand" />
-                  </button>
-                )}
-                <div className="graph-controls">
-                  <button
-                    className={`graph-tool ${settingsOpen ? "pressed" : ""}`}
-                    aria-label="Graph Settings"
-                    onClick={() => {
-                      setSettingsOpen(!settingsOpen);
-                      setActive(null);
-                      setKeypad(false);
-                      setAddOpen(false);
-                    }}
-                  >
-                    <Icon name="wrench" size={20} />
-                  </button>
-                  <div className="zoom-tools">
-                    <button
-                      aria-label="Zoom In"
-                      disabled={settings.lockViewport}
-                      onClick={() =>
-                        viewport(zoomViewport(state.graph.viewport, 0.8))
-                      }
-                    >
-                      <Icon name="plus" size={18} />
-                    </button>
-                    <button
-                      aria-label="Zoom Out"
-                      disabled={settings.lockViewport}
-                      onClick={() =>
-                        viewport(zoomViewport(state.graph.viewport, 1.25))
-                      }
-                    >
-                      <Icon name="minus" size={18} />
-                    </button>
+                    {results.get(item.id)?.display && (
+                      <span
+                        className="scientific-answer"
+                        aria-label={`Result ${results.get(item.id)!.display}`}
+                      >
+                        <MathText
+                          latex={`=${resultLatex(results.get(item.id)!.display!)}`}
+                        />
+                      </span>
+                    )}
+                    {results.get(item.id)?.error && (
+                      <span className="scientific-error" role="status">
+                        {results.get(item.id)!.error}
+                      </span>
+                    )}
                   </div>
-                  {Math.abs(state.graph.viewport.xMin + 10) > 0.001 ||
-                  Math.abs(state.graph.viewport.xMax - 10) > 0.001 ? (
-                    <button
-                      className="graph-tool"
-                      aria-label="Default View"
-                      onClick={home}
-                    >
-                      <Icon name="home" size={20} />
-                    </button>
-                  ) : null}
-                </div>
-                {settingsOpen && (
-                  <Settings
-                    theme={theme}
-                    followsSystem={followsSystem}
-                    onTheme={changeTheme}
-                    expressions={engineInput(state).expressions}
-                    settings={state.graph.settings}
-                    viewport={state.graph.viewport}
-                    onViewport={(next) => viewport(next, true)}
-                    onSettings={graphSettings}
-                  />
-                )}
+                ))}
               </div>
-              {inferenceId && (
-                <InferenceWizard
-                  onClose={() => setInferenceId(null)}
-                  onFocus={(api) => {
-                    lastField.current = api;
-                  }}
-                  onCreate={(latex) => {
-                    const row = state.graph.items.find(
-                      (i) => i.id === inferenceId,
-                    );
-                    if (row?.type === "expression")
-                      updateRow({ ...row, latex });
-                    setInferenceId(null);
-                    lastField.current = null;
-                  }}
-                />
-              )}
-              <button
-                className={`keypad-toggle ${keypad ? "open" : ""}`}
-                aria-label={keypad ? "Hide Keypad" : "Show Keypad"}
-                onPointerDown={(e) => e.preventDefault()}
-                onClick={() => {
-                  setKeypad(!keypad);
-                  setSettingsOpen(false);
-                  if (!active) focus(state.graph.items[0].id);
-                }}
-              >
-                <Icon name="keyboard" size={27} />
-                <Icon name={keypad ? "down" : "up"} size={16} />
-              </button>
-              {keypad && !audio && (
-                <Keypad
-                  complex={settings.complex}
-                  onKey={onKey}
-                  degrees={state.graph.settings.degrees}
-                  onDegrees={(degrees) =>
+              <Keypad
+                scientific
+                complex={settings.complex}
+                onKey={onKey}
+                degrees={state.scientific.degrees}
+                onDegrees={(degrees) =>
+                  commit({
+                    ...state,
+                    scientific: { ...state.scientific, degrees },
+                  })
+                }
+                canUndo={history.current.length > 0}
+                canRedo={future.current.length > 0}
+                onUndo={undo}
+                onRedo={redo}
+                onClear={() => setClearOpen(true)}
+                canClear={state.scientific.items.some((item) =>
+                  item.latex.trim(),
+                )}
+                settingsOpen={settingsOpen}
+                onSettings={() => setSettingsOpen(!settingsOpen)}
+              />
+              {settingsOpen && (
+                <Settings
+                  theme={theme}
+                  followsSystem={followsSystem}
+                  onTheme={changeTheme}
+                  expressions={engineInput(state).expressions}
+                  scientific
+                  settings={settings}
+                  viewport={state.graph.viewport}
+                  onViewport={(next) => viewport(next, true)}
+                  onSettings={(s) =>
                     commit({
                       ...state,
                       graph: {
                         ...state.graph,
-                        settings: { ...state.graph.settings, degrees },
+                        settings: {
+                          ...s,
+                          degrees: state.graph.settings.degrees,
+                          complex: state.graph.settings.complex,
+                        },
+                      },
+                      scientific: {
+                        ...state.scientific,
+                        degrees: s.degrees,
+                        complex: s.complex,
                       },
                     })
                   }
                 />
               )}
-            </main>
-          )}
-          {engineError && (
-            <div className="engine-error" role="alert">
-              {engineError}
-              <button
-                aria-label="Dismiss calculation error"
-                onClick={() => setEngineError(null)}
-              >
-                ×
-              </button>
             </div>
-          )}
-          {audio && !scientific && (
-            <AudioTrace
-              scene={scene}
-              items={state.graph.items}
-              active={active}
-              viewport={state.graph.viewport}
-              onSelect={setActive}
-              onTrace={setAudioPoint}
-              onClose={() => {
-                setAudio(false);
-                setAudioPoint(null);
-                if (activeRef.current) focus(activeRef.current);
-              }}
-              onItems={(items) => changeItems(items, "audio-slider")}
-            />
-          )}
-          {clearOpen && (
-            <div className="modal-backdrop">
-              <div
-                className="clear-dialog"
-                role="dialog"
-                aria-modal="true"
-                aria-label="Clear calculator"
-              >
-                <h2>Clear all expressions?</h2>
-                <p>This clears the current calculator.</p>
-                <div>
-                  <button onClick={() => setClearOpen(false)}>Cancel</button>
+          </main>
+        ) : (
+          <main
+            className={`graphing-container ${collapsed ? "list-collapsed" : ""} ${keypad ? "keypad-visible" : ""}`}
+            style={
+              {
+                "--sidebar-width": `${sidebarWidth}px`,
+              } as React.CSSProperties
+            }
+          >
+            <aside className="expression-panel" aria-label="Expressions">
+              <div className="expression-toolbar">
+                <button
+                  aria-label="Add Item"
+                  className={addOpen ? "pressed" : ""}
+                  onClick={() => {
+                    setAddOpen(!addOpen);
+                    setSettingsOpen(false);
+                  }}
+                >
+                  <Icon name="plus" />
+                </button>
+                <div className="undo-tools">
                   <button
-                    className="primary"
-                    onClick={() => {
-                      changeItems([expression()]);
-                      setActive(null);
-                      setClearOpen(false);
-                    }}
+                    aria-label="Undo"
+                    disabled={!history.current.length}
+                    onClick={undo}
                   >
-                    Clear all
+                    <Icon name="undo" />
+                  </button>
+                  <button
+                    aria-label="Redo"
+                    disabled={!future.current.length}
+                    onClick={redo}
+                  >
+                    <Icon name="redo" />
+                  </button>
+                </div>
+                <div className="list-tools">
+                  {state.graph.items.some(
+                    (item) =>
+                      item.type === "expression" &&
+                      /random|shuffle/.test(item.latex),
+                  ) && (
+                    <button
+                      aria-label="Randomize"
+                      title="Randomize"
+                      onClick={() =>
+                        commit({
+                          ...state,
+                          graph: {
+                            ...state.graph,
+                            randomSeed:
+                              ((state.graph.randomSeed ?? 0) + 1) >>> 0,
+                          },
+                        })
+                      }
+                    >
+                      <span className="randomize-icon">⚄</span>
+                    </button>
+                  )}
+                  {scene?.rows.some((row) => row.tones?.length) && (
+                    <button
+                      aria-label={tonesEnabled ? "Mute All" : "Unmute All"}
+                      title={tonesEnabled ? "Mute All" : "Unmute All"}
+                      onClick={toggleTones}
+                    >
+                      <Icon name="audio" size={21} />
+                      {!tonesEnabled && <span className="mute-slash">╱</span>}
+                    </button>
+                  )}
+                  <button
+                    aria-label="Edit Expression List"
+                    className={editList ? "pressed" : ""}
+                    onClick={() => setEditList(!editList)}
+                  >
+                    <Icon name="gear" size={19} />
+                  </button>
+                  <button
+                    aria-label="Hide Expression List"
+                    onClick={() => setCollapsed(true)}
+                  >
+                    <Icon name="collapse" size={22} />
                   </button>
                 </div>
               </div>
+              {addOpen && (
+                <div className="add-menu popover">
+                  <button onClick={() => addExpression(active ?? undefined)}>
+                    <span className="math-icon">ƒ(x)</span>expression
+                  </button>
+                  <button
+                    onClick={() => {
+                      const n =
+                        state.graph.items.filter((i) => i.type === "table")
+                          .length + 1;
+                      const table: Item = {
+                        id: newId(),
+                        type: "table",
+                        color: COLORS[2],
+                        hidden: false,
+                        headers: [`x_${n}`, `y_${n}`],
+                        values: [["", ""]],
+                      };
+                      const next = [...state.graph.items];
+                      const empty = next.findIndex(
+                        (item) =>
+                          item.type === "expression" && !item.latex.trim(),
+                      );
+                      const at = active
+                        ? Math.max(
+                            0,
+                            next.findIndex((i) => i.id === active),
+                          )
+                        : empty >= 0
+                          ? empty
+                          : next.length;
+                      next.splice(at, 0, table);
+                      changeItems(next);
+                      setAddOpen(false);
+                      setKeypad(true);
+                      focus(`${table.id}:0:0`);
+                    }}
+                  >
+                    <Icon name="table" size={25} />
+                    table
+                  </button>
+                  <button
+                    onClick={() => {
+                      const next = [...state.graph.items];
+                      let row =
+                        next.find(
+                          (i) =>
+                            i.id === active &&
+                            i.type === "expression" &&
+                            !i.latex,
+                        ) ??
+                        next.find((i) => i.type === "expression" && !i.latex);
+                      if (!row) {
+                        row = expression(next.length);
+                        next.push(row);
+                      }
+                      if (next[next.length - 1].id === row.id)
+                        next.push(expression(next.length));
+                      changeItems(next);
+                      setActive(row.id);
+                      setInferenceId(row.id);
+                      setAddOpen(false);
+                      setKeypad(false);
+                    }}
+                  >
+                    <span className="math-icon">χ²</span>inference
+                  </button>
+                </div>
+              )}
+              {editList && (
+                <div className="edit-list-bar">
+                  <button onClick={() => setClearOpen(true)}>Delete All</button>
+                  <button onClick={() => setEditList(false)}>Done</button>
+                </div>
+              )}
+              <div className="expression-list" ref={list}>
+                {state.graph.items.map((item, index) => (
+                  <ExpressionRow
+                    tablePointCounts={(tableData.get(item.id) ?? []).map(
+                      (points) => points.length,
+                    )}
+                    fitResult={results.get(`${item.id}:regression`)}
+                    onZoomFit={() => {
+                      const points = (tableData.get(item.id) ?? []).flat();
+                      if (!points.length) return;
+                      const xs = points.map((p) => p[0]),
+                        ys = points.map((p) => p[1]);
+                      const lo = Math.min(...xs),
+                        hi = Math.max(...xs),
+                        bottom = Math.min(...ys),
+                        top = Math.max(...ys);
+                      const dx = Math.max(1, hi - lo) * 0.1,
+                        dy = Math.max(1, top - bottom) * 0.1;
+                      viewport({
+                        ...state.graph.viewport,
+                        xMin: lo - dx,
+                        xMax: hi + dx,
+                        yMin: bottom - dy,
+                        yMax: top + dy,
+                      });
+                    }}
+                    computed={
+                      item.type === "table"
+                        ? computedColumns(item, state.graph.items)
+                        : []
+                    }
+                    columnResults={
+                      item.type === "table"
+                        ? item.headers.map((_, c) =>
+                            results.get(`${item.id}-col-${c}`),
+                          )
+                        : []
+                    }
+                    key={item.id}
+                    item={item}
+                    index={index}
+                    active={active === item.id}
+                    result={results.get(item.id)}
+                    customColors={(scene?.rows ?? [])
+                      .filter((row) => row.colorName && row.colors?.length)
+                      .map((row) => ({
+                        name: row.colorName!,
+                        colors: row.colors!,
+                      }))}
+                    editList={editList}
+                    onChange={updateRow}
+                    onSelect={() => {
+                      select(item.id);
+                      if (item.type === "expression")
+                        lastField.current = fields.current.get(item.id) ?? null;
+                    }}
+                    onDelete={() => remove(item.id)}
+                    onExport={(latex) =>
+                      changeItems([
+                        ...state.graph.items,
+                        expression(state.graph.items.length, latex),
+                      ])
+                    }
+                    onEnter={() => enter(item.id)}
+                    onMove={(d) => {
+                      const row = state.graph.items[index + d];
+                      if (row) focus(row.id);
+                    }}
+                    register={register}
+                    onSliderCreate={(names) => {
+                      const next = [...state.graph.items];
+                      for (const name of names)
+                        next.push(expression(next.length, `${name}=1`));
+                      changeItems(next);
+                    }}
+                    onReorder={(direction) => {
+                      const next = [...state.graph.items];
+                      const to = index + direction;
+                      if (to < 0 || to >= next.length) return;
+                      [next[index], next[to]] = [next[to], next[index]];
+                      changeItems(next);
+                    }}
+                  />
+                ))}
+                <button
+                  className="new-expression-row"
+                  aria-label="Add expression"
+                  onClick={() => addExpression()}
+                >
+                  <span>{state.graph.items.length + 1}</span>
+                </button>
+              </div>
+              <div className="panel-brand" aria-label="MathAI calculator">
+                <span>powered by</span>
+                <a
+                  href="./licenses.html"
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="About MathAI — WebAssembly, licenses and source"
+                >
+                  <img src="./mathai-logo.png" alt="MathAI" />
+                </a>
+              </div>
+              <div
+                className="panel-resizer"
+                role="separator"
+                aria-label="Resize expression list"
+                aria-orientation="vertical"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "ArrowLeft" || e.key === "ArrowRight")
+                    setSidebarWidth((w) =>
+                      Math.max(
+                        250,
+                        Math.min(
+                          innerWidth - 200,
+                          w + (e.key === "ArrowLeft" ? -10 : 10),
+                        ),
+                      ),
+                    );
+                }}
+                onPointerDown={(e) => {
+                  e.currentTarget.setPointerCapture(e.pointerId);
+                }}
+                onPointerMove={(e) => {
+                  if (e.currentTarget.hasPointerCapture(e.pointerId))
+                    setSidebarWidth(
+                      Math.max(
+                        250,
+                        Math.min(window.innerWidth - 200, e.clientX),
+                      ),
+                    );
+                }}
+              />
+            </aside>
+            <div className="graph-region">
+              <GraphCanvas
+                theme={theme}
+                audioPoint={audio ? audioPoint : null}
+                onItems={(items) => changeItems(items, "point-drag")}
+                viewport={state.graph.viewport}
+                settings={{
+                  ...state.graph.settings,
+                  xStep: String(
+                    results.get("__step-x")?.value ??
+                      state.graph.settings.xStep,
+                  ),
+                  yStep: String(
+                    results.get("__step-y")?.value ??
+                      state.graph.settings.yStep,
+                  ),
+                }}
+                scene={scene}
+                items={state.graph.items}
+                active={active}
+                onViewport={viewport}
+                onSelect={setActive}
+                onInteract={() => {
+                  setSettingsOpen(false);
+                  setAddOpen(false);
+                }}
+              />
+              {collapsed && (
+                <button
+                  className="show-expression-list graph-tool"
+                  aria-label="Show Expression List"
+                  onClick={() => setCollapsed(false)}
+                >
+                  <Icon name="expand" />
+                </button>
+              )}
+              <div className="graph-controls">
+                <button
+                  className={`graph-tool ${settingsOpen ? "pressed" : ""}`}
+                  aria-label="Graph Settings"
+                  onClick={() => {
+                    setSettingsOpen(!settingsOpen);
+                    setActive(null);
+                    setKeypad(false);
+                    setAddOpen(false);
+                  }}
+                >
+                  <Icon name="wrench" size={20} />
+                </button>
+                <div className="zoom-tools">
+                  <button
+                    aria-label="Zoom In"
+                    disabled={settings.lockViewport}
+                    onClick={() =>
+                      viewport(zoomViewport(state.graph.viewport, 0.8))
+                    }
+                  >
+                    <Icon name="plus" size={18} />
+                  </button>
+                  <button
+                    aria-label="Zoom Out"
+                    disabled={settings.lockViewport}
+                    onClick={() =>
+                      viewport(zoomViewport(state.graph.viewport, 1.25))
+                    }
+                  >
+                    <Icon name="minus" size={18} />
+                  </button>
+                </div>
+                {Math.abs(state.graph.viewport.xMin + 10) > 0.001 ||
+                Math.abs(state.graph.viewport.xMax - 10) > 0.001 ? (
+                  <button
+                    className="graph-tool"
+                    aria-label="Default View"
+                    onClick={home}
+                  >
+                    <Icon name="home" size={20} />
+                  </button>
+                ) : null}
+              </div>
+              {settingsOpen && (
+                <Settings
+                  theme={theme}
+                  followsSystem={followsSystem}
+                  onTheme={changeTheme}
+                  expressions={engineInput(state).expressions}
+                  settings={state.graph.settings}
+                  viewport={state.graph.viewport}
+                  onViewport={(next) => viewport(next, true)}
+                  onSettings={graphSettings}
+                />
+              )}
             </div>
-          )}
-        </div>
-      </BrailleContext.Provider>
+            {inferenceId && (
+              <InferenceWizard
+                onClose={() => setInferenceId(null)}
+                onFocus={(api) => {
+                  lastField.current = api;
+                }}
+                onCreate={(latex) => {
+                  const row = state.graph.items.find(
+                    (i) => i.id === inferenceId,
+                  );
+                  if (row?.type === "expression") updateRow({ ...row, latex });
+                  setInferenceId(null);
+                  lastField.current = null;
+                }}
+              />
+            )}
+            <button
+              className={`keypad-toggle ${keypad ? "open" : ""}`}
+              aria-label={keypad ? "Hide Keypad" : "Show Keypad"}
+              onPointerDown={(e) => e.preventDefault()}
+              onClick={() => {
+                setKeypad(!keypad);
+                setSettingsOpen(false);
+                if (!active) focus(state.graph.items[0].id);
+              }}
+            >
+              <Icon name="keyboard" size={27} />
+              <Icon name={keypad ? "down" : "up"} size={16} />
+            </button>
+            {keypad && !audio && (
+              <Keypad
+                complex={settings.complex}
+                onKey={onKey}
+                degrees={state.graph.settings.degrees}
+                onDegrees={(degrees) =>
+                  commit({
+                    ...state,
+                    graph: {
+                      ...state.graph,
+                      settings: { ...state.graph.settings, degrees },
+                    },
+                  })
+                }
+              />
+            )}
+          </main>
+        )}
+        {engineError && (
+          <div className="engine-error" role="alert">
+            {engineError}
+            <button
+              aria-label="Dismiss calculation error"
+              onClick={() => setEngineError(null)}
+            >
+              ×
+            </button>
+          </div>
+        )}
+        {audio && !scientific && (
+          <AudioTrace
+            scene={scene}
+            items={state.graph.items}
+            active={active}
+            viewport={state.graph.viewport}
+            onSelect={setActive}
+            onTrace={setAudioPoint}
+            onClose={() => {
+              setAudio(false);
+              setAudioPoint(null);
+              if (activeRef.current) focus(activeRef.current);
+            }}
+            onItems={(items) => changeItems(items, "audio-slider")}
+          />
+        )}
+        {clearOpen && (
+          <div className="modal-backdrop">
+            <div
+              className="clear-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Clear calculator"
+            >
+              <h2>Clear all expressions?</h2>
+              <p>This clears the current calculator.</p>
+              <div>
+                <button onClick={() => setClearOpen(false)}>Cancel</button>
+                <button
+                  className="primary"
+                  onClick={() => {
+                    changeItems([expression()]);
+                    setActive(null);
+                    setClearOpen(false);
+                  }}
+                >
+                  Clear all
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </ThemeContext.Provider>
   );
 }

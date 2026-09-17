@@ -6,9 +6,6 @@ for (const name of ["licenses", "source"])
   rmSync(join("public", name), { recursive: true, force: true });
 cpSync("licenses", "public/licenses", { recursive: true });
 cpSync("third_party/desquill", "public/source/desquill", { recursive: true });
-cpSync("third_party/option-ext", "public/source/option-ext", {
-  recursive: true,
-});
 for (const name of ["LICENSE", "THIRD_PARTY_NOTICES.md"])
   cpSync(name, join("public", name));
 function files(directory) {
@@ -32,5 +29,5 @@ const list = files("public/source")
   .join("\n");
 writeFileSync(
   "public/source/index.html",
-  `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Corresponding source</title><body><h1>Corresponding source</h1><p>DesQuill and option-ext: preferred source forms used by this build, provided under MPL-2.0. <a href="../licenses.html">License notices</a>.</p><ul>${list}</ul></body></html>`,
+  `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Corresponding source</title><body><h1>Corresponding source</h1><p>DesQuill: preferred source forms used by this build, provided under MPL-2.0. <a href="../licenses.html">License notices</a>.</p><ul>${list}</ul></body></html>`,
 );

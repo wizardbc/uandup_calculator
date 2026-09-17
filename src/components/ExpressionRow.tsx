@@ -4,8 +4,6 @@ import { Slider } from "./Slider";
 import { ListResult } from "./ListResult";
 import { TableRegression } from "./TableRegression";
 import { useContext, useEffect, useRef, useState } from "react";
-import { BrailleContext } from "../accessibility/context";
-import { BrailleText } from "./BrailleField";
 import {
   COLORS,
   type Expression,
@@ -67,7 +65,6 @@ export function ExpressionRow({
 }) {
   const theme = useContext(ThemeContext);
   const [styleOpen, setStyleOpen] = useState(false);
-  const { code: brailleCode } = useContext(BrailleContext);
   const held = useRef(false);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(
@@ -354,29 +351,20 @@ export function ExpressionRow({
               !result.error &&
               !result.slider &&
               !result.fit &&
-              (result.kind === "list" && brailleCode === "none" ? (
+              (result.kind === "list" ? (
                 <ListResult result={result} />
               ) : (
                 <div
                   className="expression-result"
                   aria-label={`Result ${result.display}`}
                 >
-                  {brailleCode === "none" && result.kind !== "list" && (
+                  {result.kind !== "list" && (
                     <span className="result-equals">
                       <MathText latex="=" />
                     </span>
                   )}
                   <span className="result-value">
-                    {brailleCode !== "none" ? (
-                      <BrailleText
-                        latex={`${result.kind === "list" ? "" : "="}${result.display}`}
-                        code={brailleCode}
-                      />
-                    ) : result.kind === "list" ? (
-                      result.display
-                    ) : (
-                      <MathText latex={resultLatex(result.display)} />
-                    )}
+                    <MathText latex={resultLatex(result.display)} />
                   </span>
                 </div>
               ))}

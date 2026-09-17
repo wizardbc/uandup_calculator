@@ -242,8 +242,10 @@ export function validateState(value: unknown): CalculatorState {
     throw new Error("Invalid random seed.");
   // Add defaults to older v1 snapshots without modifying the caller's object.
   if (object(graph.settings)) {
-    // Theme selection replaces the retired contrast flag in older v1 snapshots.
+    // Ignore retired display settings while retaining the saved expressions.
     delete graph.settings.reverseContrast;
+    delete graph.settings.braille;
+    delete graph.settings.sixKey;
     graph.settings = { ...DEFAULT_SETTINGS, ...graph.settings };
   }
   if (scientific.complex === undefined) scientific.complex = false;
@@ -297,8 +299,6 @@ export function validateState(value: unknown): CalculatorState {
     typeof scientific.complex !== "boolean"
   )
     throw new Error("Invalid calculator settings.");
-  if (!["none", "Nemeth", "UEB"].includes(String(graph.settings.braille)))
-    throw new Error("Invalid Braille mode.");
   for (const [key, expected] of Object.entries(DEFAULT_SETTINGS))
     if (
       typeof graph.settings[key] !== typeof expected ||

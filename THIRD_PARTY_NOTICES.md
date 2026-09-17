@@ -22,15 +22,10 @@ Nested components retained by that source:
 - React, React DOM and Scheduler: MIT, Meta Platforms, Inc. and affiliates. License files are under `licenses/npm/`.
 - `@fluent/bundle`: Apache-2.0, Mozilla/Project Fluent contributors; full license under `licenses/npm/@fluent__bundle/`.
 - `@lukeed/uuid` and `@lukeed/csprng`: MIT, Luke Edwards; license files under `licenses/npm/`.
-- Temml 0.13.5: MIT, Ron Kok and contributors; `licenses/npm/temml/LICENSE`. Used to produce MathML for Braille translation.
 
 ## Rust/WASM dependencies
 
 `num-complex` provides complex arithmetic (MIT option selected; Apache-2.0 notice also retained). `statrs` provides probability distribution functions and is MIT-licensed. `wasm-bindgen`, Serde, serde_json and their transitive dependencies have their own MIT, Apache-2.0, Unicode or dual-license notices under `licenses/rust/`. For dependencies offered under MIT OR Apache-2.0, this distribution uses the MIT option; notices for both are retained. Apache-only and Unicode-specific components retain their respective terms.
-
-MathCAT 0.7.6-rc.3, DAISY Consortium and contributors, translates MathML into Nemeth and UEB Braille in a separate WASM module. Its Rust code and bundled translation rules are MIT-licensed; see `licenses/rust/mathcat/`. Source: <https://github.com/DAISY/MathCAT>. The independent input back-translator is original MathAI code. The proprietary Abraham library is not included.
-
-MathCAT's transitive dependency `option-ext` 0.2.0 is MPL-2.0. Unmodified corresponding source is provided in `third_party/option-ext/` and `source/option-ext/` in the built distribution. Other dependencies retain their MIT, Apache-2.0, BSD, Unicode-3.0, Zlib or bzip2-1.0.6 terms, identified individually in the inventory. For `roman-numerals-rs`, the 0BSD option is selected; for Unlicense OR MIT dependencies, MIT is selected. Full upstream notices are retained, including alternative license texts where supplied.
 
 ## Build and test tooling
 

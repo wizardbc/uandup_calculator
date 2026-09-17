@@ -83,7 +83,7 @@ For embedding, `?theme=light`, `?theme=dark`, `?theme=classic`, or `?theme=high-
 - Tables with multiple columns, computed columns, paste, regression model selection, residual variables/plots, and log mode. Histograms, dot plots, box plots and polygons.
 - Probability distributions with cumulative regions and inverse bounds; quantitative/proportion/chi-square inference with creation dialogs, confidence intervals, hypothesis tests and result export.
 - Custom RGB/HSV/OK color functions, list colors, seeded random samples, audible tones, point shapes, labels and draggable coordinates/variables.
-- Nemeth and UEB translation through a separate lazy-loaded MathCAT WASM module, six-key Braille input, contrast/text-size settings, and an audio trace panel with playback, navigation and descriptions.
+- Color themes, text-size settings, and an audio trace panel with playback, navigation and descriptions.
 
 The numeric engine uses double precision. A compiled expression program accelerates repeated graph evaluation inside WASM. Adaptive sampling and refined marching squares feed transferable geometry buffers to Canvas 2D. Requests are coalesced, stale results discarded, and long-running Workers restarted after five seconds.
 
@@ -91,7 +91,7 @@ The numeric engine uses double precision. A compiled expression program accelera
 
 Reference comparison is ongoing; this repository does not claim complete visual or behavioral equivalence. The comparison target is the public SAT testing calculator. The installed Bluebook host window and physical assistive devices have not been validated. Numerical calculus, nonlinear regression, implicit intersections, discontinuities and very large or small scales require case-specific checks. General symbolic algebra is outside this numerical engine.
 
-The tests exercise actual numeric and accessibility WASM, mathematical fixtures, Braille value-preserving round trips, editing, graph interactions, inference, distributions, computed tables, regression, point dragging, audio controls and iframe state exchange. Browser projects target Chromium, Firefox, WebKit and a phone-sized WebKit viewport. Automated browser engines and viewport emulation do not substitute for physical device testing. No speed advantage over the reference calculator is claimed.
+The tests exercise actual numeric WASM, mathematical fixtures, editing, graph interactions, inference, distributions, computed tables, regression, point dragging, audio controls and iframe state exchange. Browser projects target Chromium, Firefox, WebKit and a phone-sized WebKit viewport. Automated browser engines and viewport emulation do not substitute for physical device testing. No speed advantage over the reference calculator is claimed.
 
 ## Tests
 
@@ -109,4 +109,4 @@ The browser suite checks real WASM startup, expression/keypad editing, results, 
 
 Original application and engine code: **BSD Zero Clause (0BSD)**, allowing commercial use and redistribution without an attribution condition. DesQuill remains **MPL-2.0**, and other dependencies retain their licenses; this repository does not relicense them as 0BSD. See [LICENSE](LICENSE), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and [the dependency inventory](licenses/dependency-inventory.json).
 
-The build includes required notices and the vendored MPL source for DesQuill and option-ext. MathCAT, Temml and the other dependencies retain their own notices. The MathAI logo opens `licenses.html` for recipients. Keep these materials with redistributed builds; changes to covered MPL files remain subject to MPL source-availability requirements.
+The build includes required notices and the vendored MPL source for DesQuill. The other dependencies retain their own notices. The MathAI logo opens `licenses.html` for recipients. Keep these materials with redistributed builds; changes to covered MPL files remain subject to MPL source-availability requirements.

@@ -24,6 +24,24 @@ test("small screen graphing and scientific keypads remain usable", async ({
   await page.getByRole("button", { name: "Squared", exact: true }).click();
   await page.getByRole("button", { name: "Enter", exact: true }).click();
   await expect(page.getByLabel("Result 81", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await expect(page.getByRole("checkbox", { name: /braille/i })).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Large text size", exact: true })
+    .click();
+  const result = page.getByLabel("Result 81", { exact: true });
+  await expect(result).toHaveCSS("font-size", "24px");
+  await expect(
+    page.locator(".scientific-expression .math-field").first(),
+  ).toHaveCSS("font-size", "24px");
+  expect(
+    await result.evaluate(
+      (element) => element.scrollWidth <= element.clientWidth,
+    ),
+  ).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
+    390,
+  );
 });
 
 test("appearance controls remain reachable on short graphing and scientific screens", async ({

@@ -1,6 +1,4 @@
-import { useContext, useLayoutEffect, useRef } from "react";
-import { BrailleContext } from "../accessibility/context";
-import { BrailleField } from "./BrailleField";
+import { useLayoutEffect, useRef } from "react";
 import {
   MathField as createField,
   StaticMath as createStatic,
@@ -13,15 +11,7 @@ const localize = (key: string, variables: unknown) =>
   bundledLocalize(key, variables, "en");
 const operatorNames =
   "sin cos tan sec csc cot arcsin arccos arctan arcsec arccsc arccot sinh cosh tanh csch sech coth arcsinh arccosh arctanh ln log exp abs min max mean median total length count stdev stdevp variance var varp cov covp mad corr spearman quartile stats floor ceil round sign mod nPr nCr gcd lcm quantile sort unique join repeat shuffle for with derivative integral sum product normaldist tdist chisqdist uniformdist binomialdist poissondist geodist discretedist pdf cdf inversecdf random ztest ttest zproptest chisqtest chisqgof null conf estimate stderr dof score pleft pright lower upper real imag conj arg histogram dotplot boxplot polygon distance midpoint rgb hsv okhsv oklab oklch tone normalcdf normalpdf ans";
-export function MathField(props: Parameters<typeof TypesetMathField>[0]) {
-  const { code, sixKey } = useContext(BrailleContext);
-  return code === "none" ? (
-    <TypesetMathField {...props} />
-  ) : (
-    <BrailleField {...props} code={code} sixKey={sixKey} />
-  );
-}
-function TypesetMathField({
+export function MathField({
   latex,
   label,
   onChange,

@@ -163,67 +163,110 @@ test("logarithmic axes plot without engine errors and viewport lock blocks gestu
     await page.evaluate(() => window.MathAICalculator.getDiagnostics().error),
   ).toBeNull();
 });
-test("Nemeth and UEB preserve expressions and six-key input calculates", async ({
+test("retired Braille settings restore ordinary editable math in both modes", async ({
   page,
 }) => {
-  await inputs(page, ["1+1"]);
-  await page
-    .getByRole("button", { name: "Graph Settings", exact: true })
-    .click();
-  await page.getByLabel("Braille Mode", { exact: true }).check();
-  const nemeth = page.getByRole("textbox", {
-    name: "Expression 1 (Nemeth Braille)",
-    exact: true,
-  });
-  await expect(nemeth).toHaveValue("⠼⠂⠬⠂");
-  await nemeth.fill("⠼⠆⠬⠒");
-  await expect(page.getByLabel("Result 5", { exact: true })).toBeVisible();
-  await page
-    .getByRole("button", { name: "Graph Settings", exact: true })
-    .click();
-  await page.getByRole("button", { name: "UEB", exact: true }).click();
-  const ueb = page.getByRole("textbox", {
-    name: "Expression 1 (UEB Braille)",
-    exact: true,
-  });
-  await expect(ueb).toHaveValue("⠼⠃⠐⠖⠼⠉");
-  await page.getByRole("button", { name: "Nemeth", exact: true }).click();
-  await page.getByLabel("Six Key Braille Input", { exact: true }).check();
-  await nemeth.fill("");
-  await nemeth.focus();
-  // Hold the next frame so a cursor update cannot silently cancel a newer
-  // selection. This also covers the timing that occurs on busy browsers.
-  await page.evaluate(() => {
-    const nativeFrame = window.requestAnimationFrame;
-    const queued: FrameRequestCallback[] = [];
-    window.requestAnimationFrame = (callback) => {
-      queued.push(callback);
-      return -queued.length;
-    };
-    (window as any).releaseBrailleFrame = () => {
-      window.requestAnimationFrame = nativeFrame;
-      for (const callback of queued) callback(performance.now());
-    };
-  });
-  await page.keyboard.down("d");
-  await page.keyboard.down("s");
-  await page.keyboard.up("d");
-  await page.keyboard.up("s");
-  await expect(nemeth).toHaveValue("⠆");
-  await expect
-    .poll(() =>
-      page.evaluate(() => {
-        const r = window.MathAICalculator.getState().graph.items[0];
-        return r.type === "expression" ? r.latex : "";
-      }),
-    )
-    .toBe("2");
-  await nemeth.evaluate((element: HTMLInputElement) => element.select());
-  await page.evaluate(() => (window as any).releaseBrailleFrame());
-  await page.keyboard.insertText("⠆⠬⠂");
-  await expect(nemeth).toHaveValue("⠆⠬⠂");
-  await expect(page.getByLabel("Result 3", { exact: true })).toBeVisible();
+  for (const mode of ["graphing", "scientific"] as const) {
+    const original = await page.evaluate((mode) => {
+      const s = window.MathAICalculator.getState();
+      s.mode = mode;
+      Object.assign(s.graph.settings, { braille: "UEB", sixKey: true });
+      s[mode === "graphing" ? "graph" : "scientific"].items = [
+        {
+          id: `restored-${mode}`,
+          type: "expression",
+          latex: "2+3",
+          color: "#c74440",
+          hidden: false,
+        },
+      ];
+      window.MathAICalculator.setState(s);
+      return s;
+    }, mode);
+    await expect(page.getByLabel("Result 5", { exact: true })).toBeVisible();
+    const restored = await page.evaluate(() =>
+      window.MathAICalculator.getState(),
+    );
+    expect(restored.graph.settings).not.toHaveProperty("braille");
+    expect(restored.graph.settings).not.toHaveProperty("sixKey");
+    expect(original.graph.settings).toHaveProperty("braille", "UEB");
+    expect(original.graph.settings).toHaveProperty("sixKey", true);
+    expect(restored.graph.items).toEqual(original.graph.items);
+    expect(restored.scientific.items).toEqual(original.scientific.items);
+    await page
+      .getByRole("button", {
+        name: mode === "graphing" ? "Graph Settings" : "Settings",
+        exact: true,
+      })
+      .click();
+    await expect(page.getByRole("checkbox", { name: /braille/i })).toHaveCount(
+      0,
+    );
+    await expect(
+      page.getByRole("button", { name: /^(Nemeth|UEB)$/ }),
+    ).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    const input = page.getByRole("textbox", {
+      name: /^Expression 1:/,
+    });
+    await input.focus();
+    await input.press("End");
+    await input.pressSequentially("+1");
+    await expect(page.getByLabel("Result 6", { exact: true })).toBeVisible();
+  }
 });
+
+test("scientific large text enlarges actual expressions and answers across themes", async ({
+  page,
+}) => {
+  await page.getByRole("button", { name: "Switch calculator" }).click();
+  await page
+    .getByRole("button", { name: "Scientific Calculator", exact: true })
+    .click();
+  const input = page.getByRole("textbox", {
+    name: /^Expression 1:/,
+  });
+  await input.focus();
+  await input.pressSequentially("9^2");
+  const answer = page.getByLabel("Result 81", { exact: true });
+  await expect(answer).toBeVisible();
+  const sizes = () =>
+    page.evaluate(() => {
+      const field = document.querySelector(
+        ".scientific-expression .dcg-mq-root-block",
+      )!;
+      const result = document.querySelector(
+        ".scientific-answer .dcg-mq-root-block",
+      )!;
+      return [field, result].map((e) => ({
+        font: parseFloat(getComputedStyle(e).fontSize),
+        height: e.getBoundingClientRect().height,
+      }));
+    });
+  const normal = await sizes();
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  const largeButton = page.getByRole("button", {
+    name: "Large text size",
+    exact: true,
+  });
+  await largeButton.click();
+  await expect(largeButton).toHaveAttribute("aria-pressed", "true");
+  for (const theme of ["light", "dark", "classic", "high-contrast"]) {
+    await page.getByLabel("Color theme").selectOption(theme);
+    const large = await sizes();
+    for (let i = 0; i < large.length; i++) {
+      expect(large[i].font).toBeGreaterThan(normal[i].font);
+      expect(large[i].height).toBeGreaterThan(normal[i].height);
+    }
+    await expect(answer).toBeVisible();
+  }
+  await page
+    .getByRole("button", { name: "Normal text size", exact: true })
+    .click();
+  expect(await sizes()).toEqual(normal);
+  await expect(largeButton).toHaveAttribute("aria-pressed", "false");
+});
+
 test("list comprehension, stable uniqueness, keyed sorting and statistics summary", async ({
   page,
 }) => {
