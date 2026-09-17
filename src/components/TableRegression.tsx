@@ -1,4 +1,4 @@
-import { ThemeContext, visiblePlotColor } from "../theme";
+import { ThemeContext, visiblePlotColor, plotSymbolColor } from "../theme";
 import { useContext, useState } from "react";
 import type { RowResult, Table } from "../types";
 import {
@@ -41,6 +41,7 @@ export function TableRegression({
         aria-label={`${fit.hidden ? "Show" : "Hide"} Regression`}
         style={{
           background: visiblePlotColor(fit.color, theme),
+          color: plotSymbolColor(fit.color, theme),
           opacity: fit.hidden ? 0.4 : 1,
         }}
         onClick={() => change({ hidden: !fit.hidden })}

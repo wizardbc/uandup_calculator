@@ -122,3 +122,19 @@ export function visiblePlotColor(color: string, theme: Theme): string {
   }
   return color;
 }
+
+// Choose the more legible symbol ink on a displayed plot-color swatch.
+export function plotSymbolColor(color: string, theme: Theme): string {
+  if (theme === "classic") return "#fff";
+  const match = /^#([\da-f]{3}|[\da-f]{6})$/i.exec(
+    visiblePlotColor(color, theme),
+  );
+  if (!match) return "#fff";
+  const hex =
+    match[1].length === 3 ? [...match[1]].map((c) => c + c).join("") : match[1];
+  const luminance = [0, 2, 4]
+    .map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+    .map((v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
+    .reduce((sum, v, i) => sum + v * [0.2126, 0.7152, 0.0722][i], 0);
+  return luminance > Math.sqrt(0.05 * 1.05) - 0.05 ? "#000" : "#fff";
+}

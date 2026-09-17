@@ -1,4 +1,4 @@
-import { ThemeContext, visiblePlotColor } from "../theme";
+import { ThemeContext, visiblePlotColor, plotSymbolColor } from "../theme";
 import { RegressionResult } from "./RegressionResult";
 import { Slider } from "./Slider";
 import { ListResult } from "./ListResult";
@@ -161,6 +161,12 @@ export function ExpressionRow({
           <button
             className={`expression-icon ${item.hidden ? "hidden-graph" : ""}`}
             style={{
+              color: plotSymbolColor(
+                result?.error
+                  ? "#c74440"
+                  : (result?.strokeColors?.[0] ?? item.color),
+                theme,
+              ),
               backgroundColor: result?.error
                 ? "#c74440"
                 : visiblePlotColor(
@@ -566,6 +572,11 @@ function TableEditor({
                 <button
                   className="table-color"
                   style={{
+                    color: plotSymbolColor(
+                      item.columnColors?.[c] ??
+                        (c === 1 ? item.color : COLORS[c % COLORS.length]),
+                      theme,
+                    ),
                     background: visiblePlotColor(
                       item.columnColors?.[c] ??
                         (c === 1 ? item.color : COLORS[c % COLORS.length]),
@@ -614,7 +625,7 @@ function TableEditor({
                     height="28"
                     aria-hidden="true"
                   >
-                    <g fill="white">
+                    <g fill="currentColor">
                       <circle cx="9" cy="8" r="2.5" />
                       <circle cx="20" cy="8" r="2.5" />
                       <circle cx="15" cy="15" r="2.5" />

@@ -87,10 +87,21 @@ export function Settings({
         cx="14"
         cy="14"
         r="13"
-        fill={polar === settings.polar ? "#666" : "white"}
-        stroke="#888"
+        fill={
+          polar === settings.polar
+            ? "var(--grid-selected, #666)"
+            : "var(--grid-paper, white)"
+        }
+        stroke="var(--grid-lines, #888)"
       />
-      <g stroke={polar === settings.polar ? "#eee" : "#999"} strokeWidth=".7">
+      <g
+        stroke={
+          polar === settings.polar
+            ? "var(--grid-selected-lines, #eee)"
+            : "var(--grid-lines, #999)"
+        }
+        strokeWidth=".7"
+      >
         {polar ? (
           <>
             {[4, 8, 12].map((r) => (

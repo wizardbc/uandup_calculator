@@ -498,3 +498,188 @@
   color: var(--muted-ink);
   opacity: 1;
 }
+
+/* Secondary surfaces and inset symbols need their own paint, not just text color. */
+.calculator:not([data-theme="classic"]) {
+  --icon-cutout: var(--control);
+  --diagram-ink: var(--ink);
+  --diagram-axis: var(--muted-ink);
+  --diagram-curve: var(--accent);
+  --grid-selected: var(--accent);
+  --grid-selected-lines: var(--on-accent);
+  --grid-paper: var(--surface);
+  --grid-lines: var(--muted-ink);
+}
+.calculator:not([data-theme="classic"])
+  :is(
+    .reorder-controls,
+    .inference-wizard,
+    .wizard-table td,
+    .confidence-diagram,
+    .hypothesis-diagram
+  ) {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--line);
+}
+.calculator:not([data-theme="classic"])
+  :is(
+    .edit-list-bar,
+    .inference-title,
+    .inference-wizard footer,
+    .wizard-table th,
+    .observed-table th
+  ) {
+  background: var(--muted-surface);
+  color: var(--ink);
+  border-color: var(--line);
+}
+.calculator:not([data-theme="classic"])
+  :is(
+    .reorder-controls button,
+    .inference-choices button,
+    .tails-select button
+  ) {
+  background: var(--control);
+  color: var(--ink);
+  border-color: var(--line);
+}
+.calculator:not([data-theme="classic"])
+  :is(
+    .reorder-controls button:hover,
+    .inference-choices button:hover,
+    .tails-select button:hover,
+    .tails-select button.selected
+  ) {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.calculator:not([data-theme="classic"]) .edit-list-bar > button:last-child {
+  color: var(--accent);
+}
+.calculator:not([data-theme="classic"])
+  :is(
+    .result-section-heading,
+    .test-score,
+    .observed-options,
+    .observed-table,
+    .wizard-table,
+    .wizard-table-add
+  ) {
+  color: var(--ink);
+}
+.calculator:not([data-theme="classic"])
+  :is(
+    .clear-dialog p,
+    .plot-style-field,
+    .diagram-more,
+    .observed-table td span,
+    .inference-or,
+    .inference-title > button,
+    .add-sample,
+    .add-sample span
+  ) {
+  color: var(--muted-ink);
+}
+.calculator:not([data-theme="classic"])
+  :is(
+    .wizard-table td,
+    .wizard-table th,
+    .observed-table td,
+    .observed-table th,
+    .result-section-body,
+    .tails-select > div,
+    .plot-style-section,
+    .plot-style-popover .color-palette
+  ) {
+  border-color: var(--line);
+}
+.calculator:not([data-theme="classic"]) .inference-or span {
+  background: var(--line);
+}
+.calculator:not([data-theme="classic"]) .inference-wizard:before {
+  background: var(--surface);
+  border-color: var(--line);
+}
+.calculator:not([data-theme="classic"]) .inference-form select {
+  background: var(--control);
+  color: var(--ink);
+  border-color: var(--line);
+}
+.calculator:not([data-theme="classic"]) .wizard-table td:focus-within {
+  outline-color: var(--accent);
+}
+.calculator:not([data-theme="classic"]) .create-inference,
+.calculator:not([data-theme="classic"]) .create-inference:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.calculator:not([data-theme="classic"]) .create-inference:disabled {
+  background: var(--control);
+  color: var(--muted-ink);
+}
+.calculator:not([data-theme="classic"])
+  .settings-panel
+  .check
+  input:checked:after {
+  border-color: var(--on-accent);
+}
+.calculator:not([data-theme="classic"]) .mode-toggle span {
+  background: var(--control);
+}
+.calculator:not([data-theme="classic"]) .mode-toggle.checked span {
+  background: var(--on-accent);
+}
+.calculator:not([data-theme="classic"]) .color-palette button.selected,
+.calculator:not([data-theme="classic"]) .color-palette button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.calculator:not([data-theme="classic"])
+  :is(.visualization-result, .distribution-result) {
+  color: var(--ink);
+}
+.calculator:not([data-theme="classic"])
+  :is(
+    .visualization-result h4,
+    .distribution-toolbar h4,
+    .statistics-table td button,
+    .regression-equation > button,
+    .probability-value > button > span + span
+  ) {
+  color: var(--muted-ink);
+  opacity: 1;
+}
+.calculator:not([data-theme="classic"])
+  :is(
+    .visualization-choice,
+    .distribution-cdf,
+    .distribution-summary,
+    .statistics-table td,
+    .statistics-table th,
+    .probability-expression > .math-field
+  ) {
+  border-color: var(--line);
+}
+.calculator:not([data-theme="classic"])
+  :is(.visualization-choice button, .probability-value > button) {
+  color: var(--ink);
+  background: var(--control);
+  border-color: var(--line);
+}
+.calculator:not([data-theme="classic"])
+  :is(
+    .visualization-choice button.selected,
+    .visualization-choice button:hover,
+    .probability-value > button:hover
+  ) {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent);
+  outline-color: var(--accent);
+}
+.calculator:not([data-theme="classic"]) .probability-value .export-probability {
+  color: var(--ink);
+  background: var(--surface);
+}

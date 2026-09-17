@@ -241,3 +241,237 @@ test("dark and high contrast keep black points visible without changing stored p
   ).toHaveCount(0);
   await expect(page.getByLabel("Color theme")).toHaveValue("high-contrast");
 });
+
+// Compare rendered colors, including inherited backgrounds and inset SVG marks.
+async function paintContrast(
+  locator: import("@playwright/test").Locator,
+  property = "color",
+  backgroundProperty?: string,
+  pseudo?: string,
+) {
+  return locator.evaluate(
+    (element, { property, backgroundProperty, pseudo }) => {
+      const luminance = (color: string) =>
+        color
+          .match(/[\d.]+/g)!
+          .slice(0, 3)
+          .map(Number)
+          .map((v) => v / 255)
+          .map((v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
+          .reduce((sum, v, i) => sum + v * [0.2126, 0.7152, 0.0722][i], 0);
+      const foreground = getComputedStyle(element, pseudo).getPropertyValue(
+        property,
+      );
+      let background =
+        backgroundProperty === "previous-fill"
+          ? getComputedStyle(element.previousElementSibling!).fill
+          : backgroundProperty
+            ? getComputedStyle(element).getPropertyValue(backgroundProperty)
+            : "";
+      for (
+        let parent: Element | null = element;
+        !background && parent;
+        parent = parent.parentElement
+      ) {
+        const color = getComputedStyle(parent).backgroundColor;
+        if (color !== "rgba(0, 0, 0, 0)" && color !== "transparent")
+          background = color;
+      }
+      const a = luminance(foreground),
+        b = luminance(background);
+      return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+    },
+    { property, backgroundProperty, pseudo },
+  );
+}
+async function setExpressions(page: Page, values: string[]) {
+  await page.evaluate((values) => {
+    const state = window.MathAICalculator.getState();
+    state.graph.items = values.map((latex, i) => ({
+      id: `paint-${i}`,
+      type: "expression",
+      latex,
+      color: "#c74440",
+      hidden: false,
+    }));
+    window.MathAICalculator.setState(state);
+  }, values);
+}
+for (const theme of ["dark", "high-contrast"]) {
+  test(`${theme} edit controls, keypad and selection marks stay legible`, async ({
+    page,
+  }) => {
+    await ready(page, `/?theme=${theme}`);
+    await setExpressions(page, ["2+3", "y=x^2"]);
+    await expect(page.getByLabel("Result 5", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Edit Expression List" }).click();
+    const down = page.getByRole("button", {
+      name: "Move expression 1 down",
+      exact: true,
+    });
+    const remove = page.getByRole("button", {
+      name: "Delete All",
+      exact: true,
+    });
+    expect(await paintContrast(down)).toBeGreaterThanOrEqual(4.5);
+    expect(await paintContrast(remove)).toBeGreaterThanOrEqual(4.5);
+    await down.hover();
+    expect(await paintContrast(down)).toBeGreaterThanOrEqual(4.5);
+    await down.click();
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => window.MathAICalculator.getState().graph.items[0].id,
+        ),
+      )
+      .toBe("paint-1");
+    await page
+      .getByRole("button", { name: "Style expression 1", exact: true })
+      .click();
+    for (const color of ["#c74440", "#fa7e19", "#000000"]) {
+      const swatch = page.getByRole("button", {
+        name: `Color ${color}`,
+        exact: true,
+      });
+      await swatch.click();
+      const mark = swatch.locator("path");
+      expect(await paintContrast(mark, "stroke")).toBeGreaterThanOrEqual(4.5);
+      await swatch.focus();
+      await expect(swatch).not.toHaveCSS("outline-style", "none");
+    }
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "Done", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Show Keypad", exact: true })
+      .click();
+    const backspace = page.getByRole("button", {
+      name: "Backspace",
+      exact: true,
+    });
+    // The X sits inside the filled icon, so compare against its sibling fill.
+    expect(
+      await paintContrast(
+        backspace.locator("path").nth(1),
+        "stroke",
+        "previous-fill",
+      ),
+    ).toBeGreaterThanOrEqual(4.5);
+    await page
+      .getByRole("button", { name: "Hide Keypad", exact: true })
+      .click();
+    await settings(page);
+    const grid = page.getByRole("checkbox", { name: "Grid", exact: true });
+    await expect(grid).toBeChecked();
+    expect(
+      await paintContrast(
+        grid,
+        "border-left-color",
+        "background-color",
+        "::after",
+      ),
+    ).toBeGreaterThanOrEqual(4.5);
+    await grid.uncheck();
+    await grid.check();
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "Edit Expression List" }).click();
+    await remove.click();
+    expect(
+      await paintContrast(page.locator(".clear-dialog p")),
+    ).toBeGreaterThanOrEqual(4.5);
+    await page.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect(page.getByLabel("Result 5", { exact: true })).toBeVisible();
+  });
+
+  test(`${theme} inference forms, result diagrams and observed counts stay legible`, async ({
+    page,
+  }) => {
+    await ready(page, `/?theme=${theme}`);
+    await setExpressions(page, ["\\operatorname{ztest}(25,12,3)"]);
+    const confidence = page.getByRole("button", {
+      name: /Confidence Interval$/,
+    });
+    await confidence.click();
+    await page.getByRole("button", { name: /Hypothesis Test$/ }).click();
+    expect(await paintContrast(confidence)).toBeGreaterThanOrEqual(4.5);
+    for (const text of await page.locator(".confidence-diagram text").all())
+      expect(await paintContrast(text, "fill")).toBeGreaterThanOrEqual(4.5);
+    for (const marker of await page
+      .locator(".confidence-diagram circle,.hypothesis-diagram circle")
+      .all())
+      expect(await paintContrast(marker, "fill")).toBeGreaterThanOrEqual(3);
+    for (const path of await page
+      .locator(".confidence-diagram path,.hypothesis-diagram path[stroke]")
+      .all())
+      expect(await paintContrast(path, "stroke")).toBeGreaterThanOrEqual(3);
+    for (const button of await page.locator(".tails-select button").all())
+      expect(await paintContrast(button)).toBeGreaterThanOrEqual(4.5);
+    await setExpressions(page, ["\\operatorname{chisqgof}([30,20,25,25])"]);
+    await page.getByRole("button", { name: /Observed \(Expected\)$/ }).click();
+    expect(
+      await paintContrast(page.locator(".observed-table td").first()),
+    ).toBeGreaterThanOrEqual(4.5);
+    expect(
+      await paintContrast(page.locator(".observed-table td span").first()),
+    ).toBeGreaterThanOrEqual(4.5);
+    await setExpressions(page, ["\\operatorname{normaldist}(0,1)"]);
+    await page.getByRole("button", { name: /Cumulative Probability$/ }).click();
+    const probability = page.getByRole("button", {
+      name: "Probability 0.683",
+      exact: true,
+    });
+    await expect(probability).toBeVisible();
+    expect(await paintContrast(probability)).toBeGreaterThanOrEqual(4.5);
+    expect(
+      await paintContrast(probability.locator("span").last()),
+    ).toBeGreaterThanOrEqual(4.5);
+    for (const choice of await page
+      .locator(".visualization-choice button")
+      .all())
+      expect(await paintContrast(choice)).toBeGreaterThanOrEqual(4.5);
+    await probability.click();
+    expect(
+      await paintContrast(
+        page.getByRole("button", { name: "Export probability", exact: true }),
+      ),
+    ).toBeGreaterThanOrEqual(4.5);
+    await setExpressions(page, ["\\operatorname{boxplot}([1,2,3,4,20])"]);
+    await expect(page.locator(".visualization-result")).toBeVisible();
+    expect(
+      await paintContrast(page.locator(".visualization-result .check")),
+    ).toBeGreaterThanOrEqual(4.5);
+    await page.getByRole("button", { name: "Add Item", exact: true }).click();
+    await page.getByRole("button", { name: /inference$/ }).click();
+    await expect(page.locator(".inference-wizard")).toHaveCSS(
+      "color-scheme",
+      "dark",
+    );
+    expect(
+      await paintContrast(page.locator(".inference-or")),
+    ).toBeGreaterThanOrEqual(4.5);
+    await page.locator(".inference-choices button").nth(1).click();
+    await page.getByRole("button", { name: "Stats", exact: true }).click();
+    expect(
+      await paintContrast(
+        page.getByRole("button", { name: "Back", exact: true }),
+      ),
+    ).toBeGreaterThanOrEqual(4.5);
+    for (const [label, value] of [
+      ["sample size", "25"],
+      ["mean", "12"],
+      ["pop stdev", "3"],
+    ]) {
+      await page
+        .getByRole("textbox", { name: new RegExp(`^Sample 1 ${label}:?$`) })
+        .focus();
+      await page.keyboard.type(value);
+    }
+    const create = page.getByRole("button", {
+      name: "Create Test",
+      exact: true,
+    });
+    await expect(create).toBeEnabled();
+    expect(await paintContrast(create)).toBeGreaterThanOrEqual(4.5);
+    await create.click();
+    await expect(page.locator(".inference-wizard")).toHaveCount(0);
+  });
+}

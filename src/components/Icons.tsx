@@ -75,7 +75,7 @@ export function Icon({
         <path fill="currentColor" stroke="none" d="M8 6h13v12H8l-6-6z" />
         <path
           fill="none"
-          stroke="#fff"
+          stroke="var(--icon-cutout, #fff)"
           strokeWidth="1.8"
           d="m11 9 6 6m0-6-6 6"
         />

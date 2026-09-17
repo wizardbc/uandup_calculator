@@ -224,14 +224,29 @@ export function InferenceResult({
                 >
                   <path
                     d="M65 17H194 M65 14V20 M194 14V20"
-                    stroke="#555"
+                    stroke="var(--diagram-axis, #555)"
                     fill="none"
                   />
-                  <circle cx="130" cy="17" r="2.5" />
-                  <text x="65" y="39" textAnchor="middle">
+                  <circle
+                    cx="130"
+                    cy="17"
+                    r="2.5"
+                    fill="var(--diagram-ink, #000)"
+                  />
+                  <text
+                    fill="var(--diagram-ink, #000)"
+                    x="65"
+                    y="39"
+                    textAnchor="middle"
+                  >
                     {num(t.lower)}
                   </text>
-                  <text x="194" y="39" textAnchor="middle">
+                  <text
+                    fill="var(--diagram-ink, #000)"
+                    x="194"
+                    y="39"
+                    textAnchor="middle"
+                  >
                     {num(t.upper)}
                   </text>
                 </svg>
@@ -293,13 +308,31 @@ export function InferenceResult({
               viewBox="0 0 259 119"
               aria-label={`Test statistic ${num(t.score)}, p-value ${probability}`}
             >
-              <path d={shading} fill="#2d70e4" fillOpacity=".3" />
-              <path d={path} fill="none" stroke="#2d70e4" strokeWidth="1.5" />
-              <path d="M0 90H259" stroke="#777" />
-              <circle cx={sx(t.score)} cy="90" r="2.5" />
+              <path
+                d={shading}
+                fill="var(--diagram-curve, #2d70e4)"
+                fillOpacity=".3"
+              />
+              <path
+                d={path}
+                fill="none"
+                stroke="var(--diagram-curve, #2d70e4)"
+                strokeWidth="1.5"
+              />
+              <path d="M0 90H259" stroke="var(--diagram-axis, #777)" />
+              <circle
+                cx={sx(t.score)}
+                cy="90"
+                r="2.5"
+                fill="var(--diagram-ink, #000)"
+              />
               {!chi &&
                 Array.from({ length: 11 }, (_, i) => (
-                  <path key={i} d={`M${21.5 + i * 21.6} 87V93`} stroke="#777" />
+                  <path
+                    key={i}
+                    d={`M${21.5 + i * 21.6} 87V93`}
+                    stroke="var(--diagram-axis, #777)"
+                  />
                 ))}
             </svg>
             <div className="test-statistics">

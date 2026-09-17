@@ -1,4 +1,4 @@
-import { ThemeContext, visiblePlotColor } from "../theme";
+import { ThemeContext, visiblePlotColor, plotSymbolColor } from "../theme";
 import { useContext, useEffect, useRef } from "react";
 import {
   COLORS,
@@ -252,7 +252,7 @@ export function ExpressionStyle({
                 <path
                   d="m5 12 5 5 10-11"
                   fill="none"
-                  stroke="white"
+                  stroke={plotSymbolColor(color, theme)}
                   strokeWidth="3"
                 />
               </svg>
