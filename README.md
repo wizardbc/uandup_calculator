@@ -73,7 +73,7 @@ The first visit follows the device's system appearance: **Light** or **Dark**. O
 
 A manual choice is saved in this browser and takes priority over the system appearance. Check **Use system setting** to resume automatic selection, including live system appearance changes. If browser storage is blocked, theme selection still works for the current page. Themes are independent of expressions, calculator state and undo history.
 
-For embedding, `?theme=light`, `?theme=dark`, `?theme=classic`, or `?theme=high-contrast` overrides the saved preference for that page without saving it. This also works with `?embed=1`. Invalid theme values are ignored. Reverse contrast remains available within each theme; stored plot colors remain unchanged when their displayed colors are adjusted for visibility.
+For embedding, `?theme=light`, `?theme=dark`, `?theme=classic`, or `?theme=high-contrast` overrides the saved preference for that page without saving it. This also works with `?embed=1`. Invalid theme values are ignored. Stored plot colors remain unchanged when their displayed colors are adjusted for visibility.
 
 ## Implemented behavior
 

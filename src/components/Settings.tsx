@@ -37,7 +37,6 @@ export function Settings({
   ) => onSettings({ ...settings, [key]: value });
   const check = (
     key:
-      | "reverseContrast"
       | "grid"
       | "minorGrid"
       | "axisNumbers"
@@ -140,10 +139,6 @@ export function Settings({
           A
         </button>
       </div>
-      {check(
-        "reverseContrast",
-        scientific ? "Reverse Contrast" : "Reverse contrast",
-      )}
       <label className="check">
         <input
           type="checkbox"

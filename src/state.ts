@@ -241,8 +241,11 @@ export function validateState(value: unknown): CalculatorState {
   )
     throw new Error("Invalid random seed.");
   // Add defaults to older v1 snapshots without modifying the caller's object.
-  if (object(graph.settings))
+  if (object(graph.settings)) {
+    // Theme selection replaces the retired contrast flag in older v1 snapshots.
+    delete graph.settings.reverseContrast;
     graph.settings = { ...DEFAULT_SETTINGS, ...graph.settings };
+  }
   if (scientific.complex === undefined) scientific.complex = false;
   if (
     !Array.isArray(graph.items) ||

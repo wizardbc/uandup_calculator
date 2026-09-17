@@ -62,7 +62,6 @@ export type GraphSettings = {
   yLabel: string;
   xStep: string;
   yStep: string;
-  reverseContrast: boolean;
   largeText: boolean;
   degrees: boolean;
   complex: boolean;
@@ -308,7 +307,6 @@ export const DEFAULT_SETTINGS: GraphSettings = {
   yLabel: "",
   xStep: "",
   yStep: "",
-  reverseContrast: false,
   largeText: false,
   degrees: false,
   complex: false,

@@ -8,7 +8,7 @@ import type {
   RowResult,
 } from "../types";
 import { COLORS } from "../types";
-import { graphPalette, visiblePlotColor, type ResolvedTheme } from "../theme";
+import { graphPalette, visiblePlotColor, type Theme } from "../theme";
 export function graphItem(items: Item[], id: string): Item | undefined {
   const [owner, column] = id.split(/:plot:|:regression/);
   const item = items.find((i) => i.id === owner);
@@ -139,10 +139,10 @@ export function renderGraph(
   items: Item[],
   selected: string | null,
   trace: Interest | null,
-  theme: ResolvedTheme = "classic",
+  theme: Theme = "classic",
 ) {
   const { width, height } = view;
-  const palette = graphPalette(theme, settings.reverseContrast);
+  const palette = graphPalette(theme);
   ctx.clearRect(0, 0, width, height);
   ctx.fillStyle = palette.paper;
   ctx.fillRect(0, 0, width, height);

@@ -15,7 +15,7 @@ import {
 } from "./render";
 import { dragPoint } from "./pointDrag";
 import { MathText } from "../components/MathField";
-import { visiblePlotColor, type ResolvedTheme } from "../theme";
+import { visiblePlotColor, type Theme } from "../theme";
 
 export function zoomViewport(
   view: Viewport,
@@ -71,7 +71,7 @@ export function GraphCanvas({
   onItems,
   audioPoint,
 }: {
-  theme?: ResolvedTheme;
+  theme?: Theme;
   viewport: Viewport;
   settings: GraphSettings;
   scene: Scene | null;

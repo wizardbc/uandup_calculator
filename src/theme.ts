@@ -7,7 +7,6 @@ export const THEMES = [
   ["high-contrast", "High contrast"],
 ] as const;
 export type Theme = (typeof THEMES)[number][0];
-export type ResolvedTheme = Theme | "high-contrast-light";
 const storageKey = "mathai.theme";
 export function isTheme(value: unknown): value is Theme {
   return THEMES.some(([theme]) => theme === value);
@@ -31,7 +30,7 @@ export function saveTheme(theme: Theme | null) {
     // Keep the selection for this session when storage is unavailable.
   }
 }
-export const ThemeContext = createContext<ResolvedTheme>("classic");
+export const ThemeContext = createContext<Theme>("classic");
 export function useTheme() {
   const [preference, setPreference] = useState(initialThemePreference);
   const [systemDark, setSystemDark] = useState(
@@ -54,19 +53,14 @@ export function useTheme() {
     },
   };
 }
-export function resolveTheme(theme: Theme, reversed: boolean): ResolvedTheme {
-  if (!reversed || theme === "classic") return theme;
-  if (theme === "high-contrast") return "high-contrast-light";
-  return theme === "dark" ? "light" : "dark";
-}
-export function graphPalette(theme: ResolvedTheme, reversed = false) {
+export function graphPalette(theme: Theme) {
   if (theme === "classic")
     return {
-      paper: reversed ? "#161616" : "#fff",
-      major: reversed ? "#777" : "#999",
-      minor: reversed ? "#3b3b3b" : "#e0e0e0",
-      polar: reversed ? "#666" : "#bbb",
-      ink: reversed ? "#eee" : "#000",
+      paper: "#fff",
+      major: "#999",
+      minor: "#e0e0e0",
+      polar: "#bbb",
+      ink: "#000",
       trace: "#000",
       traceOutline: "#fff",
     };
@@ -90,16 +84,6 @@ export function graphPalette(theme: ResolvedTheme, reversed = false) {
       trace: "#ffe36b",
       traceOutline: "#000",
     };
-  if (theme === "high-contrast-light")
-    return {
-      paper: "#fff",
-      major: "#657185",
-      minor: "#bbc2cd",
-      polar: "#657185",
-      ink: "#000",
-      trace: "#000",
-      traceOutline: "#fff",
-    };
   return {
     paper: "#fff",
     major: "#a7b2c4",
@@ -111,8 +95,8 @@ export function graphPalette(theme: ResolvedTheme, reversed = false) {
   };
 }
 
-// Preserve stored colors, adapting very dark/light strokes only for visibility.
-export function visiblePlotColor(color: string, theme: ResolvedTheme): string {
+// Preserve stored colors, adapting dark strokes only for visibility.
+export function visiblePlotColor(color: string, theme: Theme): string {
   if (theme === "classic" || theme === "light") return color;
   const match = /^#([\da-f]{3}|[\da-f]{6})$/i.exec(color);
   if (!match) return color;
@@ -126,16 +110,10 @@ export function visiblePlotColor(color: string, theme: ResolvedTheme): string {
         return n <= 0.04045 ? n / 12.92 : ((n + 0.055) / 1.055) ** 2.4;
       })
       .reduce((sum, n, i) => sum + n * [0.2126, 0.7152, 0.0722][i], 0);
-  const light = theme === "high-contrast-light";
-  const paper = light
-    ? 1
-    : theme === "dark"
-      ? luminance([17, 24, 39])
-      : luminance([5, 7, 10]);
+  const paper =
+    theme === "dark" ? luminance([17, 24, 39]) : luminance([5, 7, 10]);
   for (let step = 0; step <= 20; step++) {
-    const mixed = rgb.map((v) =>
-      Math.round(v + (((light ? 0 : 255) - v) * step) / 20),
-    );
+    const mixed = rgb.map((v) => Math.round(v + ((255 - v) * step) / 20));
     const value = luminance(mixed);
     if ((Math.max(value, paper) + 0.05) / (Math.min(value, paper) + 0.05) >= 3)
       return step === 0

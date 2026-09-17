@@ -66,19 +66,6 @@
   --error: #ffb7b7;
   color-scheme: dark;
 }
-.calculator[data-theme="high-contrast-light"] {
-  --surface: #fff;
-  --workspace: #fff;
-  --muted-surface: #e6ecf4;
-  --control: #fff;
-  --line: #25364e;
-  --ink: #000;
-  --muted-ink: #27364a;
-  --accent: #10356d;
-  --accent-soft: #dae6fa;
-  --on-accent: #fff;
-  --error: #a40000;
-}
 .calculator:not([data-theme="classic"])
   :is(
     .app-header,
@@ -335,15 +322,11 @@
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
-.calculator:not([data-theme="classic"]).reverse-contrast
-  :is(.expression-panel, .scientific-calculator, .popover) {
-  filter: none;
-}
-.calculator:is([data-theme="high-contrast"], [data-theme="high-contrast-light"])
+.calculator[data-theme="high-contrast"]
   :is(.key, .graph-tool, .zoom-tools, .popover, .scientific-calculator) {
   box-shadow: none;
 }
-.calculator:is([data-theme="high-contrast"], [data-theme="high-contrast-light"])
+.calculator[data-theme="high-contrast"]
   :is(button:focus-visible, input:focus-visible, select:focus-visible) {
   outline-width: 3px;
 }

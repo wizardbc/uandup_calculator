@@ -1418,15 +1418,6 @@ button:hover:not(:disabled) {
 .large-text .expression-content > .math-field {
   font-size: 26px;
 }
-.reverse-contrast .expression-panel,
-.reverse-contrast .scientific-calculator,
-.reverse-contrast .popover {
-  filter: invert(1) hue-rotate(180deg);
-}
-.reverse-contrast .coordinate-label {
-  background: #222;
-  color: #fff;
-}
 .embedded {
   --header-height: 0px;
 }

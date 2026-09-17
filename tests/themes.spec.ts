@@ -153,7 +153,7 @@ test("dark and high contrast keep black points visible without changing stored p
   page,
 }) => {
   await ready(page, "/?theme=dark");
-  await page.evaluate(() => {
+  const originalFlag = await page.evaluate(() => {
     const state = window.MathAICalculator.getState();
     state.graph.settings.grid = false;
     state.graph.settings.xAxis = state.graph.settings.yAxis = false;
@@ -166,11 +166,26 @@ test("dark and high contrast keep black points visible without changing stored p
         hidden: false,
       },
     ];
+    const oldSettings = Object.assign(state.graph.settings, {
+      reverseContrast: true,
+    });
     window.MathAICalculator.setState(state);
+    return oldSettings.reverseContrast;
   });
+  expect(originalFlag).toBe(true);
+  await expect(page.locator(".calculator")).toHaveAttribute(
+    "data-theme",
+    "dark",
+  );
   await expect(
     page.getByRole("button", { name: "Hide graph 1", exact: true }),
   ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () =>
+        "reverseContrast" in window.MathAICalculator.getState().graph.settings,
+    ),
+  ).toBe(false);
   await settings(page);
   for (const theme of ["dark", "high-contrast"]) {
     await page.getByLabel("Color theme").selectOption(theme);
@@ -212,18 +227,17 @@ test("dark and high contrast keep black points visible without changing stored p
       ),
     ).toBe("#000000");
   }
-  await page.getByLabel("Reverse contrast", { exact: true }).check();
-  await expect(page.locator(".calculator")).toHaveAttribute(
-    "data-theme",
-    "high-contrast-light",
-  );
+  await expect(
+    page.getByRole("checkbox", { name: /reverse contrast/i }),
+  ).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Switch calculator" }).click();
+  await page
+    .getByRole("button", { name: "Scientific Calculator", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await expect(
+    page.getByRole("checkbox", { name: /reverse contrast/i }),
+  ).toHaveCount(0);
   await expect(page.getByLabel("Color theme")).toHaveValue("high-contrast");
-  await page.getByLabel("Reverse contrast", { exact: true }).uncheck();
-  await page.getByLabel("Color theme").selectOption("dark");
-  await page.getByLabel("Reverse contrast", { exact: true }).check();
-  await expect(page.locator(".calculator")).toHaveAttribute(
-    "data-theme",
-    "light",
-  );
-  await expect(page.getByLabel("Color theme")).toHaveValue("dark");
 });

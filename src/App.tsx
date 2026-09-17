@@ -29,7 +29,7 @@ import { BrailleText } from "./components/BrailleField";
 import { Icon } from "./components/Icons";
 import { GraphCanvas, zoomViewport } from "./graph/GraphCanvas";
 import { installEmbed, validateState } from "./state";
-import { resolveTheme, useTheme, ThemeContext } from "./theme";
+import { useTheme, ThemeContext } from "./theme";
 
 declare global {
   interface Window {
@@ -490,15 +490,13 @@ export default function App() {
       }
     : state.graph.settings;
   return (
-    <ThemeContext.Provider
-      value={resolveTheme(theme, settings.reverseContrast)}
-    >
+    <ThemeContext.Provider value={theme}>
       <BrailleContext.Provider
         value={{ code: settings.braille, sixKey: settings.sixKey }}
       >
         <div
-          data-theme={resolveTheme(theme, settings.reverseContrast)}
-          className={`calculator ${scientific ? "scientific-mode" : "graphing-mode"} ${settings.reverseContrast ? "reverse-contrast" : ""} ${settings.largeText ? "large-text" : ""} ${new URLSearchParams(location.search).get("embed") === "1" ? "embedded" : ""}`}
+          data-theme={theme}
+          className={`calculator ${scientific ? "scientific-mode" : "graphing-mode"} ${settings.largeText ? "large-text" : ""} ${new URLSearchParams(location.search).get("embed") === "1" ? "embedded" : ""}`}
         >
           <header className="app-header">
             <a
@@ -946,7 +944,7 @@ export default function App() {
               </aside>
               <div className="graph-region">
                 <GraphCanvas
-                  theme={resolveTheme(theme, settings.reverseContrast)}
+                  theme={theme}
                   audioPoint={audio ? audioPoint : null}
                   onItems={(items) => changeItems(items, "point-drag")}
                   viewport={state.graph.viewport}
